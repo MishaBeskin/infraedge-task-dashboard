@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { ThemeService } from '../../services/theme.service';
 
 @Component({
   selector: 'app-header',
@@ -23,6 +24,7 @@ export class HeaderComponent {
 
   private authService = inject(AuthService);
   private router = inject(Router);
+  protected themeService = inject(ThemeService);
 
   get userInitials(): string {
     const user = this.authService.getCurrentUser();

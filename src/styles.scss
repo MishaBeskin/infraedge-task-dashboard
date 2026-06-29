@@ -7,9 +7,20 @@
   --text-primary: #1a1a1a;
   --text-muted: #888780;
   --priority-high: #E24B4A;
-  --priority-medium: #E05A20;
+  --priority-medium: #ffbd2a;
   --priority-low: #888780;
   --radius: 10px;
+  --avatar-bg: #e8ddd5;
+}
+
+[data-theme="dark"] {
+  --bg: #111318;
+  --surface: #1c1f2b;
+  --border: #2d2f3d;
+  --text-primary: #e8e8f0;
+  --text-muted: #6b7280;
+  --avatar-bg: #1e2540;
+  color-scheme: dark;
 }
 
 *,
