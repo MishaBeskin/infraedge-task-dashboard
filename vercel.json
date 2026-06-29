@@ -1,0 +1,5 @@
+{
+  "buildCommand": "npx ng build",
+  "outputDirectory": "dist/infraedge-task-dashboard/browser",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}

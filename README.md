@@ -80,6 +80,40 @@ e2e/
 
 ---
 
+## Deploying to production
+
+The app has two parts that deploy separately: the Angular frontend goes to **Vercel** and the json-server API goes to **Render.com**.
+
+### 1 — Deploy the API to Render.com
+
+1. Go to [render.com](https://render.com) → New → Blueprint
+2. Connect your GitHub repo — Render picks up `render.yaml` automatically and creates a **Web Service** called `infraedge-api`
+3. Once it deploys, copy the service URL (e.g. `https://infraedge-api.onrender.com`)
+4. Open `src/environments/environment.prod.ts` and replace the placeholder with your real URL:
+   ```typescript
+   apiUrl: 'https://infraedge-api.onrender.com',
+   ```
+5. Commit and push
+
+> **Note:** Render's free tier spins down after 15 minutes of inactivity. The first request after a cold start can take ~30 seconds. Data written to `db.json` is ephemeral and resets on every redeploy.
+
+### 2 — Deploy the frontend to Vercel
+
+1. Go to [vercel.com](https://vercel.com) → Add New Project → Import your GitHub repo
+2. Vercel reads `vercel.json` automatically — no settings to change
+3. Click **Deploy**
+
+Every push to `main` redeploys both services automatically.
+
+### Environment files
+
+| File | Used when |
+|---|---|
+| `src/environments/environment.ts` | `npm start` (dev, points to localhost:3000) |
+| `src/environments/environment.prod.ts` | `ng build` (production, points to Render URL) |
+
+---
+
 ## Architecture decisions
 
 ### Standalone components, no NgModules

@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: infraedge-api
+    runtime: node
+    buildCommand: npm install
+    startCommand: npx json-server db.json --port $PORT --host 0.0.0.0
+    plan: free
+    envVars:
+      - key: NODE_VERSION
+        value: 20

@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { User } from '../models/task.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -19,7 +20,7 @@ export class AuthService {
 
   login(email: string, password: string) {
     return this.http
-      .get<User[]>(`http://localhost:3000/users?email=${email}&password=${password}`)
+      .get<User[]>(`${environment.apiUrl}/users?email=${email}&password=${password}`)
       .pipe(
         tap(users => {
           if (users.length > 0) {

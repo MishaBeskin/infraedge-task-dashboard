@@ -4,6 +4,7 @@ import { BehaviorSubject } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { Task } from '../models/task.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class TaskService {
@@ -21,7 +22,7 @@ export class TaskService {
     this.loadingSubject.next(true);
     this.errorSubject.next(null);
     return this.http
-      .get<Task[]>(`http://localhost:3000/tasks?userId=${userId}`)
+      .get<Task[]>(`${environment.apiUrl}/tasks?userId=${userId}`)
       .pipe(
         tap(tasks => {
           this.tasksSubject.next(tasks);
@@ -36,7 +37,7 @@ export class TaskService {
   }
 
   createTask(task: Omit<Task, 'id'>) {
-    return this.http.post<Task>('http://localhost:3000/tasks', task).pipe(
+    return this.http.post<Task>(`${environment.apiUrl}/tasks`, task).pipe(
       tap(created => {
         this.tasksSubject.next([...this.tasksSubject.getValue(), created]);
       })
@@ -44,7 +45,7 @@ export class TaskService {
   }
 
   updateTask(id: number, patch: Partial<Task>) {
-    return this.http.patch<Task>(`http://localhost:3000/tasks/${id}`, patch).pipe(
+    return this.http.patch<Task>(`${environment.apiUrl}/tasks/${id}`, patch).pipe(
       tap(updated => {
         const tasks = this.tasksSubject.getValue().map(t => (t.id === id ? updated : t));
         this.tasksSubject.next(tasks);
@@ -53,7 +54,7 @@ export class TaskService {
   }
 
   deleteTask(id: number) {
-    return this.http.delete<void>(`http://localhost:3000/tasks/${id}`).pipe(
+    return this.http.delete<void>(`${environment.apiUrl}/tasks/${id}`).pipe(
       tap(() => {
         const tasks = this.tasksSubject.getValue().filter(t => t.id !== id);
         this.tasksSubject.next(tasks);
