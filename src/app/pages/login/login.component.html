@@ -1,0 +1,71 @@
+<div class="login-page">
+  <!-- RIGHT panel: branding -->
+  <div class="panel panel--brand">
+    <div class="brand-logo">● stack</div>
+    <div class="brand-body">
+      <h1 class="brand-headline">
+        תכנן את העבודה.<br>ואז <em class="brand-highlight">בצע</em> אותה.
+      </h1>
+      <p class="brand-subtitle">פלטפורמת ניהול המשימות שמסדרת את העבודה לשלבים ברורים — כדי שתוכל להתמקד במה שחשוב.</p>
+    </div>
+    <div class="brand-footer">© Stack 2026 · פרטיות · תנאים</div>
+  </div>
+
+  <!-- LEFT panel: form -->
+  <div class="panel panel--form">
+    <div class="form-wrapper">
+      <h2 class="form-title">ברוך שובך</h2>
+      <p class="form-subtitle">התחבר למרחב העבודה שלך.</p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="field">
+          <label for="email">דוא"ל</label>
+          <input id="email" type="email" formControlName="email" dir="ltr" autocomplete="email" placeholder="alice@example.com"
+            [class.field-error]="form.controls.email.invalid && form.controls.email.touched">
+          @if (form.controls.email.touched && form.controls.email.hasError('required')) {
+            <span class="field-error-msg">יש להזין כתובת דוא"ל</span>
+          } @else if (form.controls.email.touched && form.controls.email.hasError('email')) {
+            <span class="field-error-msg">כתובת הדוא"ל אינה תקינה</span>
+          }
+        </div>
+
+        <div class="field">
+          <label for="password">סיסמה</label>
+          <div class="password-wrapper">
+            <input
+              id="password"
+              [type]="showPassword() ? 'text' : 'password'"
+              formControlName="password"
+              dir="ltr"
+              autocomplete="current-password"
+              placeholder="••••••••"
+              [class.field-error]="form.controls.password.invalid && form.controls.password.touched"
+            >
+            <button type="button" class="eye-btn" (click)="togglePassword()" aria-label="הצג/הסתר סיסמה">
+              @if (showPassword()) {
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              } @else {
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              }
+            </button>
+          </div>
+          @if (form.controls.password.touched && form.controls.password.hasError('required')) {
+            <span class="field-error-msg">יש להזין סיסמה</span>
+          }
+        </div>
+
+        @if (error()) {
+          <p class="error-msg">פרטי ההתחברות שגויים</p>
+        }
+
+        <button type="submit" class="submit-btn" [disabled]="loading()">
+          @if (loading()) {
+            מתחבר...
+          } @else {
+            → התחברות
+          }
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

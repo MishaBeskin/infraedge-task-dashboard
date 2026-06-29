@@ -1,0 +1,53 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$j=[Console]::In.ReadToEnd()|ConvertFrom-Json; $c=$j.tool_input.command; $s=[regex]::Replace($c,'(?s)<<[\"\\x27]?\\w+[\"\\x27]?.*?\\n\\w+\\n',''); if($s -match 'rm\\s+-rf|DROP\\s+TABLE|DROP\\s+DATABASE|DELETE\\s+FROM\\b|TRUNCATE\\s+TABLE'){Write-Output '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Dangerous command blocked by project safety hook\"}}'}",
+            "statusMessage": "Checking command safety..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$json = [Console]::In.ReadToEnd() | ConvertFrom-Json; $file = $json.tool_input.file_path; if ($file -match '\\.(ts|tsx|js|jsx)$') { npx eslint --fix $file 2>&1 }; exit 0",
+            "statusMessage": "Linting...",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$json = [Console]::In.ReadToEnd() | ConvertFrom-Json; $file = $json.tool_input.file_path; if ($file -match '\\.(ts|tsx)$') { npx tsc --noEmit 2>&1 }; exit 0",
+            "statusMessage": "Type-checking...",
+            "timeout": 60,
+            "async": true
+          },
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$json = [Console]::In.ReadToEnd() | ConvertFrom-Json; $file = $json.tool_input.file_path; if ($file -match '\\.(ts|tsx|js|jsx)$') { npx vitest run 2>&1 }; exit 0",
+            "statusMessage": "Running tests...",
+            "timeout": 60,
+            "async": true
+          },
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$json = [Console]::In.ReadToEnd() | ConvertFrom-Json; $file = $json.tool_input.file_path; if ($file) { \"$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $file\" | Out-File -FilePath .claude/change-log.txt -Append -Encoding utf8 }",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

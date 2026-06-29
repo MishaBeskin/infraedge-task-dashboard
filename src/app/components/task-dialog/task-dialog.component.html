@@ -1,0 +1,60 @@
+<div class="overlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+    <div class="modal-header">
+      <h3 id="dialog-title" class="modal-title">{{ isEdit ? 'עריכת משימה' : 'משימה חדשה' }}</h3>
+      <button class="close-btn" (click)="closed.emit()" aria-label="סגור">✕</button>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="field">
+        <label for="task-title">כותרת</label>
+        <input
+          id="task-title"
+          type="text"
+          formControlName="title"
+          placeholder="שם המשימה"
+          [class.field-error]="form.controls.title.invalid && form.controls.title.touched"
+        >
+        @if (form.controls.title.touched && form.controls.title.hasError('required')) {
+          <span class="field-error-msg">יש להזין כותרת</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="task-desc">תיאור · אופציונלי</label>
+        <textarea id="task-desc" formControlName="description" placeholder="תיאור המשימה..." rows="3"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="task-status">סטטוס</label>
+        <select id="task-status" formControlName="status">
+          <option value="todo">לעשות</option>
+          <option value="in-progress">בתהליך</option>
+          <option value="done">הושלם</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>עדיפות</label>
+        <div class="priority-toggle">
+          <button type="button" class="priority-btn" [class.selected]="form.value.priority === 'high'" (click)="setPriority('high')">גבוהה</button>
+          <button type="button" class="priority-btn" [class.selected]="form.value.priority === 'medium'" (click)="setPriority('medium')">בינונית</button>
+          <button type="button" class="priority-btn" [class.selected]="form.value.priority === 'low'" (click)="setPriority('low')">נמוכה</button>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="footer-actions">
+          <button type="button" class="btn-cancel" (click)="closed.emit()">ביטול</button>
+          <button type="submit" class="btn-submit" [disabled]="isSubmitting()">
+            @if (isSubmitting()) {
+              {{ isEdit ? 'שומר...' : 'יוצר...' }}
+            } @else {
+              {{ isEdit ? 'שמור שינויים' : 'צור משימה' }}
+            }
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

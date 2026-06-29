@@ -1,1 +1,29 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  --brand: #E05A20;
+  --brand-hover: #c44d18;
+  --bg: #FAF8F4;
+  --surface: #ffffff;
+  --border: #e8e4dc;
+  --text-primary: #1a1a1a;
+  --text-muted: #888780;
+  --priority-high: #E24B4A;
+  --priority-medium: #E05A20;
+  --priority-low: #888780;
+  --radius: 10px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  direction: rtl;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--surface);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}

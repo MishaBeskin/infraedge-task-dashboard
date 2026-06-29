@@ -1,0 +1,70 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "name": "Alice Johnson",
+      "email": "alice@example.com",
+      "password": "alice123",
+      "token": "tok-alice-a1b2c3"
+    },
+    {
+      "id": "2",
+      "name": "Bob Smith",
+      "email": "bob@example.com",
+      "password": "bob123",
+      "token": "tok-bob-d4e5f6"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "1",
+      "title": "Redesign the onboarding flow",
+      "status": "in-progress",
+      "priority": "high",
+      "userId": 1
+    },
+    {
+      "id": "2",
+      "title": "Fix date picker bug in Safari",
+      "status": "todo",
+      "priority": "high",
+      "userId": 1
+    },
+    {
+      "id": "3",
+      "title": "Write unit tests for AuthService",
+      "status": "done",
+      "priority": "medium",
+      "userId": 1
+    },
+    {
+      "id": "4",
+      "title": "Update third-party dependencies",
+      "status": "done",
+      "priority": "low",
+      "userId": 1
+    },
+    {
+      "id": "5",
+      "title": "Set up CI pipeline",
+      "status": "todo",
+      "priority": "medium",
+      "userId": 1
+    },
+    {
+      "id": "6",
+      "title": "Migrate dashboard to standalone components",
+      "status": "todo",
+      "priority": "high",
+      "userId": 2
+    },
+    {
+      "id": "7",
+      "title": "Review pull requests",
+      "status": "done",
+      "priority": "medium",
+      "userId": 2
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}

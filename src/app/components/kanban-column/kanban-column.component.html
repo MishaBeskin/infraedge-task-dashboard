@@ -1,0 +1,25 @@
+<div class="column"
+     [attr.data-status]="status"
+     [class.drag-over]="isDragOver()"
+     (dragenter)="onDragEnter($event)"
+     (dragleave)="onDragLeave()"
+     (dragover)="onDragOver($event)"
+     (drop)="onDrop($event)">
+  <div class="column-header">
+    <div class="column-title-group">
+      <span class="column-title">{{ title }}</span>
+      <span class="status-dot"></span>
+    </div>
+    <span class="count-badge">{{ tasks.length }}</span>
+    <button class="add-btn" (click)="addTask.emit(status)" aria-label="הוסף משימה">+</button>
+  </div>
+
+  <div class="task-list">
+    @if (tasks.length === 0) {
+      <div class="empty-state">אין משימות</div>
+    }
+    @for (task of tasks; track task.id) {
+      <app-task-card [task]="task" (editTask)="editTask.emit($event)" />
+    }
+  </div>
+</div>

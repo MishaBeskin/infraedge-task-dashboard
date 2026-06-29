@@ -1,0 +1,207 @@
+.task-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  border-right: 4px solid transparent;
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.2s;
+
+  &[data-priority="high"]   { border-right-color: var(--priority-high); }
+  &[data-priority="medium"] { border-right-color: var(--priority-medium); }
+  &[data-priority="low"]    { border-right-color: var(--priority-low); }
+
+  &.is-updating {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  &.is-dragging {
+    opacity: 0.35;
+    cursor: grabbing;
+  }
+}
+
+.task-card {
+  cursor: grab;
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.875rem 0.875rem 0.75rem;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.card-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.card-description {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.775rem;
+  font-weight: 500;
+
+  &[data-priority="high"]   { color: var(--priority-high); }
+  &[data-priority="medium"] { color: var(--priority-medium); }
+  &[data-priority="low"]    { color: var(--priority-low); }
+}
+
+.badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  .priority-badge[data-priority="high"] &   { background: var(--priority-high); }
+  .priority-badge[data-priority="medium"] & { background: var(--priority-medium); }
+  .priority-badge[data-priority="low"] &    { background: var(--priority-low); }
+}
+
+.card-divider {
+  height: 1px;
+  border-top: 1px dashed var(--border);
+  margin: 0;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.875rem;
+}
+
+.status-select-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 0.2rem 0.6rem 0.2rem 0.4rem;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  .status-select-wrapper[data-status="todo"] &        { background: var(--priority-low); }
+  .status-select-wrapper[data-status="in-progress"] & { background: var(--priority-medium); }
+  .status-select-wrapper[data-status="done"] &        { background: #5a9e6f; }
+}
+
+select {
+  font-family: inherit;
+  font-size: 0.8rem;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+  outline: none;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: color 0.15s;
+
+  &:hover {
+    color: var(--brand);
+  }
+}
+
+.delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+
+  &:hover {
+    color: var(--priority-high);
+    border-color: var(--priority-high);
+  }
+
+  &--confirm {
+    width: auto;
+    padding: 0 0.4rem 0 0.5rem;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: inherit;
+    background: rgba(226, 75, 74, 0.08);
+    color: var(--priority-high);
+    border-color: var(--priority-high);
+  }
+}
+
+.countdown-ring {
+  flex-shrink: 0;
+  transform: rotate(-90deg);
+}
+
+.ring-track {
+  fill: none;
+  stroke: rgba(226, 75, 74, 0.2);
+  stroke-width: 2;
+}
+
+.ring-fill {
+  fill: none;
+  stroke: var(--priority-high);
+  stroke-width: 2;
+  stroke-linecap: round;
+  /* 43.98 = 2π × r(7) — the full circumference of the circle at r=7 */
+  stroke-dasharray: 43.98;
+  stroke-dashoffset: 0;
+  animation: countdown-ring 5s linear forwards;
+}
+
+@keyframes countdown-ring {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: 43.98; }
+}

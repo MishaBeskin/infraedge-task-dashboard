@@ -1,0 +1,71 @@
+<app-header [taskCount]="filteredCount()" (addTask)="openDefaultDialog()" />
+
+<div class="toolbar">
+  <!-- RIGHT in RTL: filter label + pills -->
+  <div class="filter-section">
+    <span class="filter-label">עדיפות</span>
+    <div class="priority-pills">
+      <button class="pill-btn" [class.active]="priorityFilter() === 'all'" (click)="setPriorityFilter('all')">הכל</button>
+      <button class="pill-btn pill-btn--high" [class.active]="priorityFilter() === 'high'" (click)="setPriorityFilter('high')">
+        <span class="pill-dot"></span>גבוהה
+      </button>
+      <button class="pill-btn pill-btn--medium" [class.active]="priorityFilter() === 'medium'" (click)="setPriorityFilter('medium')">
+        <span class="pill-dot"></span>בינונית
+      </button>
+      <button class="pill-btn pill-btn--low" [class.active]="priorityFilter() === 'low'" (click)="setPriorityFilter('low')">
+        <span class="pill-dot"></span>נמוכה
+      </button>
+    </div>
+  </div>
+
+  <!-- LEFT in RTL: search -->
+  <div class="search-wrapper">
+    <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input
+      class="search-input"
+      type="text"
+      placeholder="חיפוש משימות..."
+      [value]="searchQuery()"
+      (input)="setSearchQuery($any($event.target).value)"
+      dir="rtl"
+    >
+  </div>
+</div>
+
+@if (loading$ | async) {
+  <div class="board-columns">
+    @for (col of [1, 2, 3]; track col) {
+      <div class="skeleton-col">
+        <div class="sk-header shimmer"></div>
+        <div class="sk-card shimmer"></div>
+        <div class="sk-card shimmer"></div>
+      </div>
+    }
+  </div>
+} @else if (error$ | async; as err) {
+  <div class="error-banner">{{ err }}</div>
+} @else {
+  <div class="board-columns">
+    <app-kanban-column title="לעשות" [tasks]="todoTasks()" status="todo" (addTask)="openDialog($event)" (editTask)="openEditDialog($event)" (taskDropped)="onTaskDropped($event)" />
+    <app-kanban-column title="בתהליך" [tasks]="inProgressTasks()" status="in-progress" (addTask)="openDialog($event)" (editTask)="openEditDialog($event)" (taskDropped)="onTaskDropped($event)" />
+    <app-kanban-column title="הושלם" [tasks]="doneTasks()" status="done" (addTask)="openDialog($event)" (editTask)="openEditDialog($event)" (taskDropped)="onTaskDropped($event)" />
+  </div>
+}
+
+@if (showDialog) {
+  <app-task-dialog
+    mode="create"
+    [defaultStatus]="dialogStatus()"
+    (closed)="closeDialog()"
+    (taskSaved)="closeDialog()"
+  />
+}
+
+@if (showEditDialog && editingTask) {
+  <app-task-dialog
+    mode="edit"
+    [task]="editingTask"
+    (closed)="closeEditDialog()"
+    (taskSaved)="closeEditDialog()"
+  />
+}
