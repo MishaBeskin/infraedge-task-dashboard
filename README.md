@@ -1,5 +1,10 @@
 # Stack — Task Management Dashboard
 
+**Live demo:** https://infraedge-task-dashboard.vercel.app
+(Frontend on Vercel · API on Render.com · login with `alice@example.com` / `alice123`)
+
+---
+
 A Kanban-style task manager built in Angular 21. Three columns (Todo / In Progress / Done), drag-and-drop between them, priority filtering, search, and inline editing. The UI is fully in Hebrew with right-to-left layout throughout.
 
 The backend is [json-server](https://github.com/typicode/json-server), so there is no real API — `db.json` acts as the database. This makes the project self-contained and easy to run locally.
