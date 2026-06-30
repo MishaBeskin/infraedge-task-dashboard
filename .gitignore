@@ -43,6 +43,9 @@ __screenshots__/
 /test-results
 /playwright-report
 
+# Personal notes
+INTERVIEW_PREP.md
+
 # System files
 .DS_Store
 Thumbs.db
