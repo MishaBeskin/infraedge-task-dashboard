@@ -27,6 +27,7 @@ export class LoginComponent {
   showPassword = signal(false);
 
   constructor() {
+    this.authService.warmUp();
     this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
       if (this.error()) this.error.set(false);
     });

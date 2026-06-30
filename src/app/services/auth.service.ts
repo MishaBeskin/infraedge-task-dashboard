@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { tap, catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
 import { User } from '../models/task.model';
 import { environment } from '../../environments/environment';
 
@@ -29,6 +30,14 @@ export class AuthService {
           }
         })
       );
+  }
+
+  // Render.com free tier spins down after 15 min of inactivity.
+  // Call this when the login page loads so the server is warm before the user submits.
+  warmUp() {
+    this.http.get(`${environment.apiUrl}/users`, { params: { _limit: '1' } })
+      .pipe(catchError(() => of(null)))
+      .subscribe();
   }
 
   logout() {
