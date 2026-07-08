@@ -25,8 +25,9 @@ export class AuthService {
       .pipe(
         tap(users => {
           if (users.length > 0) {
-            localStorage.setItem('stack_user', JSON.stringify(users[0]));
-            this.currentUserSubject.next(users[0]);
+            const user = { ...users[0], id: Number(users[0].id) };
+            localStorage.setItem('stack_user', JSON.stringify(user));
+            this.currentUserSubject.next(user);
           }
         })
       );

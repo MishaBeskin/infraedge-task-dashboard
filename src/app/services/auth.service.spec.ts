@@ -85,6 +85,21 @@ describe('AuthService', () => {
     expect(store['stack_user']).toBeUndefined();
   });
 
+  // Regression: db.json stores user ids as strings (e.g. "1"), but Task.userId
+  // in the app is always a number. If login() didn't coerce the id, a task
+  // created right after login would be saved with a string userId and would
+  // fail to match `GET /tasks?userId=1` after a reload — i.e. it would
+  // silently disappear. See auth.service.ts login().
+  it('should coerce a string id from the server into a number', () => {
+    service.login('alice@example.com', 'alice123').subscribe();
+    http.expectOne(r => r.url.includes('/users')).flush([{ ...mockUser, id: '1' }]);
+
+    const user = service.getCurrentUser();
+    expect(user?.id).toBe(1);
+    expect(typeof user?.id).toBe('number');
+    expect(typeof JSON.parse(store['stack_user']).id).toBe('number');
+  });
+
   it('should call the correct URL with email and password', () => {
     service.login('alice@example.com', 'alice123').subscribe();
     const req = http.expectOne(

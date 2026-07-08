@@ -60,6 +60,32 @@ test.describe('Create dialog', () => {
 
     await apiDelete(`/tasks/${createdId}`);
   });
+
+  // Regression: db.json stores user ids as strings, so a task created right
+  // after login must still be found by `GET /tasks?userId=N` on reload.
+  // Before the fix, AuthService kept the id as a string, the new task was
+  // persisted with a string userId, and it silently vanished on refresh.
+  test('task created via the dialog still appears after a page reload', async ({ page }) => {
+    const responsePromise = page.waitForResponse(
+      r => r.url().includes('/tasks') && r.request().method() === 'POST',
+    );
+
+    await page.locator('.column[data-status="todo"] .add-btn').click();
+    await page.locator('#task-title').fill(E2E_TITLE);
+    await page.locator('.btn-submit').click();
+
+    const response = await responsePromise;
+    const createdId = String((await response.json()).id);
+
+    await page.reload();
+    await page.locator('.column').first().waitFor();
+
+    await expect(
+      page.locator('.column[data-status="todo"] .card-title').filter({ hasText: E2E_TITLE }),
+    ).toBeVisible();
+
+    await apiDelete(`/tasks/${createdId}`);
+  });
 });
 
 // ── Edit, delete, status change ───────────────────────────────────────────────
