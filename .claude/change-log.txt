@@ -5,3 +5,8 @@
 2026-07-08 11:27:17 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\services\auth.service.ts
 2026-07-08 11:28:02 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\services\auth.service.ts
 2026-07-08 11:28:22 C:\Develop\InfraEdge\infraedge-task-dashboard\db.json
+2026-07-08 11:46:11 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\services\task.service.ts
+2026-07-08 11:46:23 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\services\task.service.ts
+2026-07-08 11:46:37 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\services\task.service.ts
+2026-07-08 11:46:47 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\services\task.service.ts
+2026-07-08 11:47:55 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\services\task.service.spec.ts
