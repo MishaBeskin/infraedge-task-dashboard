@@ -166,6 +166,61 @@ describe('TaskService', () => {
     expect(tasks.find(t => t.id === 2)).toEqual(t2);
   });
 
+  // Regression: dragging a card across columns twice in quick succession (e.g.
+  // over a slow connection) used to leave it sitting in the first column until
+  // the first PATCH resolved, and a late/out-of-order response for that first
+  // PATCH could clobber the second, newer status. updateTask() must apply the
+  // status optimistically and cancel any still-pending PATCH for the same task.
+  it('reflects the new status immediately, before the PATCH resolves', async () => {
+    const original = mockTask({ id: 1, status: 'todo' });
+    service.loadTasksForUser(1).subscribe();
+    http.expectOne(r => r.url.includes('/tasks')).flush([original]);
+
+    service.updateTask(1, { status: 'in-progress' }).subscribe();
+
+    const tasks = await firstValueFrom(service.tasks$);
+    expect(tasks[0].status).toBe('in-progress');
+
+    http.expectOne('http://localhost:3000/tasks/1').flush({ ...original, status: 'in-progress' });
+  });
+
+  it('cancels an in-flight update when a newer one for the same task is issued', async () => {
+    const original = mockTask({ id: 1, status: 'todo' });
+    service.loadTasksForUser(1).subscribe();
+    http.expectOne(r => r.url.includes('/tasks')).flush([original]);
+
+    // First drag: todo -> in-progress. Its response never arrives before the
+    // second drag happens (slow connection).
+    service.updateTask(1, { status: 'in-progress' }).subscribe();
+    const staleReq = http.expectOne('http://localhost:3000/tasks/1');
+
+    // Second drag before the first resolves: in-progress -> done.
+    service.updateTask(1, { status: 'done' }).subscribe();
+    expect(staleReq.cancelled).toBe(true);
+
+    // Even though the stale request now resolves, it must not overwrite
+    // the newer status.
+    const freshReq = http.expectOne('http://localhost:3000/tasks/1');
+    freshReq.flush({ ...original, status: 'done' });
+
+    const tasks = await firstValueFrom(service.tasks$);
+    expect(tasks[0].status).toBe('done');
+  });
+
+  it('reverts the optimistic status if the PATCH fails', async () => {
+    const original = mockTask({ id: 1, status: 'todo' });
+    service.loadTasksForUser(1).subscribe();
+    http.expectOne(r => r.url.includes('/tasks')).flush([original]);
+
+    let error: unknown;
+    service.updateTask(1, { status: 'in-progress' }).subscribe({ error: e => (error = e) });
+    http.expectOne('http://localhost:3000/tasks/1').flush(null, { status: 500, statusText: 'Error' });
+
+    expect(error).toBeTruthy();
+    const tasks = await firstValueFrom(service.tasks$);
+    expect(tasks[0].status).toBe('todo');
+  });
+
   // ── deleteTask() ──────────────────────────────────────────────
 
   it('should DELETE /tasks/:id', () => {
