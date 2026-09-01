@@ -9,11 +9,13 @@ import {
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { ThemeService } from '../../services/theme.service';
+import { I18nService } from '../../services/i18n.service';
+import { LanguageToggleComponent } from '../language-toggle/language-toggle.component';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [],
+  imports: [LanguageToggleComponent],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,6 +27,7 @@ export class HeaderComponent {
   private authService = inject(AuthService);
   private router = inject(Router);
   protected themeService = inject(ThemeService);
+  protected i18n = inject(I18nService);
 
   get userInitials(): string {
     const user = this.authService.getCurrentUser();

@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter, signal, inject, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
 import { Task } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
+import { I18nService } from '../../services/i18n.service';
 
 @Component({
   selector: 'app-task-card',
@@ -15,6 +16,7 @@ export class TaskCardComponent implements OnDestroy {
   @Output() editTask = new EventEmitter<Task>();
 
   private taskService = inject(TaskService);
+  protected i18n = inject(I18nService);
   private deleteTimer?: ReturnType<typeof setTimeout>;
 
   isUpdating = signal(false);
@@ -22,12 +24,7 @@ export class TaskCardComponent implements OnDestroy {
   isDragging = signal(false);
 
   get priorityLabel(): string {
-    const labels: Record<Task['priority'], string> = {
-      high: 'גבוהה',
-      medium: 'בינונית',
-      low: 'נמוכה',
-    };
-    return labels[this.task.priority];
+    return this.i18n.t(`priority.${this.task.priority}`);
   }
 
   onStatusChange(event: Event) {

@@ -30,7 +30,8 @@ export class TaskService {
           this.loadingSubject.next(false);
         }),
         catchError(() => {
-          this.errorSubject.next('שגיאה בטעינת המשימות');
+          // Emit a translation key; the board resolves it via I18nService.
+          this.errorSubject.next('errors.loadTasks');
           this.loadingSubject.next(false);
           return of([]);
         })

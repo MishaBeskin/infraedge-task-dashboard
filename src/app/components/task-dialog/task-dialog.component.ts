@@ -12,6 +12,7 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Task, Status } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
 import { AuthService } from '../../services/auth.service';
+import { I18nService } from '../../services/i18n.service';
 
 @Component({
   selector: 'app-task-dialog',
@@ -31,6 +32,7 @@ export class TaskDialogComponent implements OnInit {
   private fb = inject(FormBuilder);
   private taskService = inject(TaskService);
   private authService = inject(AuthService);
+  protected i18n = inject(I18nService);
 
   isSubmitting = signal(false);
 

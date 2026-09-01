@@ -11,12 +11,12 @@
       <span class="status-dot"></span>
     </div>
     <span class="count-badge">{{ tasks.length }}</span>
-    <button class="add-btn" (click)="addTask.emit(status)" aria-label="הוסף משימה">+</button>
+    <button class="add-btn" (click)="addTask.emit(status)" [attr.aria-label]="i18n.t('column.add')">+</button>
   </div>
 
   <div class="task-list">
     @if (tasks.length === 0) {
-      <div class="empty-state">אין משימות</div>
+      <div class="empty-state">{{ i18n.t('column.empty') }}</div>
     }
     @for (task of tasks; track task.id) {
       <app-task-card [task]="task" (editTask)="editTask.emit($event)" />

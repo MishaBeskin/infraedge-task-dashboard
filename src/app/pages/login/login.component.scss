@@ -24,10 +24,26 @@
   }
 }
 
+.brand-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .brand-logo {
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+// The language toggle sits on the orange panel — lighten its chrome to suit.
+.brand-topbar app-language-toggle {
+  --lang-toggle-border: rgba(255, 255, 255, 0.35);
+  --lang-toggle-fg: rgba(255, 255, 255, 0.7);
+  --lang-toggle-fg-hover: #fff;
+  --lang-toggle-active-bg: #fff;
+  --lang-toggle-active-fg: var(--brand);
 }
 
 .brand-body {
@@ -126,15 +142,18 @@ form {
 
 .password-wrapper {
   position: relative;
+  // The input is force-LTR (latin credentials); pin the toggle to its visual
+  // trailing edge so it lines up in both Hebrew (RTL page) and English (LTR).
+  direction: ltr;
 
   input {
-    padding-left: 2.75rem;
+    padding-inline-end: 2.75rem;
   }
 }
 
 .eye-btn {
   position: absolute;
-  left: 0.625rem;
+  inset-inline-end: 0.625rem;
   top: 50%;
   transform: translateY(-50%);
   background: none;

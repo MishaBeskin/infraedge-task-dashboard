@@ -1,0 +1,16 @@
+<div class="lang-toggle" role="group" [attr.aria-label]="i18n.t('a11y.switchLang')">
+  <button
+    type="button"
+    class="lang-btn"
+    [class.active]="i18n.lang() === 'he'"
+    [attr.aria-pressed]="i18n.lang() === 'he'"
+    (click)="i18n.setLang('he')"
+  >עב</button>
+  <button
+    type="button"
+    class="lang-btn"
+    [class.active]="i18n.lang() === 'en'"
+    [attr.aria-pressed]="i18n.lang() === 'en'"
+    (click)="i18n.setLang('en')"
+  >EN</button>
+</div>

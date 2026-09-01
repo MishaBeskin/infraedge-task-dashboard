@@ -85,7 +85,7 @@
 
 .search-icon {
   position: absolute;
-  right: 0.75rem;
+  inset-inline-start: 0.75rem;
   color: var(--text-muted);
   pointer-events: none;
 }
@@ -93,7 +93,9 @@
 .search-input {
   font-family: inherit;
   font-size: 0.875rem;
-  padding: 0.5rem 2.25rem 0.5rem 0.875rem;
+  padding-block: 0.5rem;
+  padding-inline-start: 2.25rem;
+  padding-inline-end: 0.875rem;
   border: 1.5px solid var(--border);
   border-radius: 8px;
   background: var(--surface);

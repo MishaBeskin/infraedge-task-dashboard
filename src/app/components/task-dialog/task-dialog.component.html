@@ -1,56 +1,56 @@
 <div class="overlay">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
     <div class="modal-header">
-      <h3 id="dialog-title" class="modal-title">{{ isEdit ? 'עריכת משימה' : 'משימה חדשה' }}</h3>
-      <button class="close-btn" (click)="closed.emit()" aria-label="סגור">✕</button>
+      <h3 id="dialog-title" class="modal-title">{{ isEdit ? i18n.t('dialog.title.edit') : i18n.t('dialog.title.create') }}</h3>
+      <button class="close-btn" (click)="closed.emit()" [attr.aria-label]="i18n.t('dialog.close')">✕</button>
     </div>
 
     <form [formGroup]="form" (ngSubmit)="submit()">
       <div class="field">
-        <label for="task-title">כותרת</label>
+        <label for="task-title">{{ i18n.t('dialog.field.title') }}</label>
         <input
           id="task-title"
           type="text"
           formControlName="title"
-          placeholder="שם המשימה"
+          [placeholder]="i18n.t('dialog.field.title.placeholder')"
           [class.field-error]="form.controls.title.invalid && form.controls.title.touched"
         >
         @if (form.controls.title.touched && form.controls.title.hasError('required')) {
-          <span class="field-error-msg">יש להזין כותרת</span>
+          <span class="field-error-msg">{{ i18n.t('dialog.field.title.required') }}</span>
         }
       </div>
 
       <div class="field">
-        <label for="task-desc">תיאור · אופציונלי</label>
-        <textarea id="task-desc" formControlName="description" placeholder="תיאור המשימה..." rows="3"></textarea>
+        <label for="task-desc">{{ i18n.t('dialog.field.description') }}</label>
+        <textarea id="task-desc" formControlName="description" [placeholder]="i18n.t('dialog.field.description.placeholder')" rows="3"></textarea>
       </div>
 
       <div class="field">
-        <label for="task-status">סטטוס</label>
+        <label for="task-status">{{ i18n.t('dialog.field.status') }}</label>
         <select id="task-status" formControlName="status">
-          <option value="todo">לעשות</option>
-          <option value="in-progress">בתהליך</option>
-          <option value="done">הושלם</option>
+          <option value="todo">{{ i18n.t('status.todo') }}</option>
+          <option value="in-progress">{{ i18n.t('status.in-progress') }}</option>
+          <option value="done">{{ i18n.t('status.done') }}</option>
         </select>
       </div>
 
       <div class="field">
-        <label>עדיפות</label>
+        <label>{{ i18n.t('dialog.field.priority') }}</label>
         <div class="priority-toggle">
-          <button type="button" class="priority-btn" [class.selected]="form.value.priority === 'high'" (click)="setPriority('high')">גבוהה</button>
-          <button type="button" class="priority-btn" [class.selected]="form.value.priority === 'medium'" (click)="setPriority('medium')">בינונית</button>
-          <button type="button" class="priority-btn" [class.selected]="form.value.priority === 'low'" (click)="setPriority('low')">נמוכה</button>
+          <button type="button" class="priority-btn" [class.selected]="form.value.priority === 'high'" (click)="setPriority('high')">{{ i18n.t('priority.high') }}</button>
+          <button type="button" class="priority-btn" [class.selected]="form.value.priority === 'medium'" (click)="setPriority('medium')">{{ i18n.t('priority.medium') }}</button>
+          <button type="button" class="priority-btn" [class.selected]="form.value.priority === 'low'" (click)="setPriority('low')">{{ i18n.t('priority.low') }}</button>
         </div>
       </div>
 
       <div class="modal-footer">
         <div class="footer-actions">
-          <button type="button" class="btn-cancel" (click)="closed.emit()">ביטול</button>
+          <button type="button" class="btn-cancel" (click)="closed.emit()">{{ i18n.t('dialog.cancel') }}</button>
           <button type="submit" class="btn-submit" [disabled]="isSubmitting()">
             @if (isSubmitting()) {
-              {{ isEdit ? 'שומר...' : 'יוצר...' }}
+              {{ isEdit ? i18n.t('dialog.submitting.edit') : i18n.t('dialog.submitting.create') }}
             } @else {
-              {{ isEdit ? 'שמור שינויים' : 'צור משימה' }}
+              {{ isEdit ? i18n.t('dialog.submit.edit') : i18n.t('dialog.submit.create') }}
             }
           </button>
         </div>

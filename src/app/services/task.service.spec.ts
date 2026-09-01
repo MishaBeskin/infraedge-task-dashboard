@@ -78,7 +78,8 @@ describe('TaskService', () => {
     service.loadTasksForUser(1).subscribe();
     http.expectOne(r => r.url.includes('/tasks')).flush(null, { status: 500, statusText: 'Error' });
 
-    expect(await firstValueFrom(service.error$)).toBe('שגיאה בטעינת המשימות');
+    // The service emits a translation key; the board resolves it via I18nService.
+    expect(await firstValueFrom(service.error$)).toBe('errors.loadTasks');
   });
 
   it('should set loading false on HTTP failure', async () => {

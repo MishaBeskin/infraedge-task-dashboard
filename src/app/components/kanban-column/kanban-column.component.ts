@@ -4,10 +4,12 @@ import {
   Output,
   EventEmitter,
   ChangeDetectionStrategy,
+  inject,
   signal,
 } from '@angular/core';
 import { Task, Status } from '../../models/task.model';
 import { TaskCardComponent } from '../task-card/task-card.component';
+import { I18nService } from '../../services/i18n.service';
 
 @Component({
   selector: 'app-kanban-column',
@@ -24,6 +26,8 @@ export class KanbanColumnComponent {
   @Output() addTask = new EventEmitter<Status>();
   @Output() editTask = new EventEmitter<Task>();
   @Output() taskDropped = new EventEmitter<{ taskId: string; newStatus: Status }>();
+
+  protected i18n = inject(I18nService);
 
   isDragOver = signal(false);
 

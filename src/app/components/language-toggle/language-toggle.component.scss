@@ -1,0 +1,45 @@
+// Colours are exposed as custom properties so a host (e.g. the orange login
+// panel) can restyle the control without piercing view encapsulation.
+:host {
+  --lang-toggle-border: var(--border);
+  --lang-toggle-fg: var(--text-muted);
+  --lang-toggle-fg-hover: var(--text-primary);
+  --lang-toggle-active-bg: var(--text-primary);
+  --lang-toggle-active-fg: var(--surface);
+}
+
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid var(--lang-toggle-border);
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.lang-btn {
+  padding: 0.3rem 0.55rem;
+  min-width: 34px;
+  background: none;
+  border: none;
+  color: var(--lang-toggle-fg);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  & + .lang-btn {
+    border-inline-start: 1.5px solid var(--lang-toggle-border);
+  }
+
+  &:hover {
+    color: var(--lang-toggle-fg-hover);
+  }
+
+  &.active {
+    background: var(--lang-toggle-active-bg);
+    color: var(--lang-toggle-active-fg);
+  }
+}

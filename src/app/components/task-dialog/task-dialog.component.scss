@@ -15,7 +15,8 @@
   width: 100%;
   max-width: 480px;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.18);
-  direction: rtl;
+  // Follow the active language (dir on <html>) instead of forcing RTL.
+  direction: inherit;
   overflow: hidden;
 }
 

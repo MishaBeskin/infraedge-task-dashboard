@@ -11,6 +11,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { Task, Status } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
 import { AuthService } from '../../services/auth.service';
+import { I18nService } from '../../services/i18n.service';
 import { HeaderComponent } from '../../components/header/header.component';
 import { KanbanColumnComponent } from '../../components/kanban-column/kanban-column.component';
 import { TaskDialogComponent } from '../../components/task-dialog/task-dialog.component';
@@ -26,6 +27,7 @@ import { TaskDialogComponent } from '../../components/task-dialog/task-dialog.co
 export class BoardComponent implements OnInit {
   private taskService = inject(TaskService);
   private authService = inject(AuthService);
+  protected i18n = inject(I18nService);
 
   loading$ = this.taskService.loading$;
   error$ = this.taskService.error$;

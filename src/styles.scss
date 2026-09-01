@@ -32,7 +32,9 @@
 }
 
 body {
-  direction: rtl;
+  // Direction is driven by the `dir` attribute on <html>, set by I18nService
+  // (rtl for Hebrew, ltr for English). index.html ships dir="rtl" for first paint.
+  direction: inherit;
   font-family: system-ui, -apple-system, sans-serif;
   background: var(--surface);
   color: var(--text-primary);

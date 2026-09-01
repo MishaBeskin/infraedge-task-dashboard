@@ -2,14 +2,14 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  border-right: 4px solid transparent;
+  border-inline-start: 4px solid transparent;
   display: flex;
   flex-direction: column;
   transition: opacity 0.2s;
 
-  &[data-priority="high"]   { border-right-color: var(--priority-high); }
-  &[data-priority="medium"] { border-right-color: var(--priority-medium); }
-  &[data-priority="low"]    { border-right-color: var(--priority-low); }
+  &[data-priority="high"]   { border-inline-start-color: var(--priority-high); }
+  &[data-priority="medium"] { border-inline-start-color: var(--priority-medium); }
+  &[data-priority="low"]    { border-inline-start-color: var(--priority-low); }
 
   &.is-updating {
     opacity: 0.5;
