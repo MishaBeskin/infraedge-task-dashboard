@@ -1,3 +1,5 @@
+@use '../auth-shared';
+
 .login-page {
   display: flex;
   min-height: 100vh;
@@ -31,12 +33,6 @@
   gap: 1rem;
 }
 
-.brand-logo {
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
 // The language toggle sits on the orange panel — lighten its chrome to suit.
 .brand-topbar app-language-toggle {
   --lang-toggle-border: rgba(255, 255, 255, 0.35);
@@ -65,7 +61,7 @@
   font-style: italic;
   font-weight: 900;
   color: #fff;
-  text-decoration: underline wavy rgba(255,255,255,0.6);
+  text-decoration: underline wavy rgba(255, 255, 255, 0.6);
 }
 
 .brand-subtitle {
@@ -86,131 +82,4 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
-
-.form-title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.form-subtitle {
-  font-size: 0.95rem;
-  color: var(--text-muted);
-  margin: -1rem 0 0;
-}
-
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-
-  label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--text-primary);
-  }
-
-  input {
-    width: 100%;
-    padding: 0.625rem 0.875rem;
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    font-size: 0.95rem;
-    font-family: inherit;
-    background: var(--bg);
-    color: var(--text-primary);
-    transition: border-color 0.15s;
-    outline: none;
-
-    &:focus {
-      border-color: var(--brand);
-    }
-
-    &::placeholder {
-      color: var(--text-muted);
-    }
-  }
-}
-
-.password-wrapper {
-  position: relative;
-  // The input is force-LTR (latin credentials); pin the toggle to its visual
-  // trailing edge so it lines up in both Hebrew (RTL page) and English (LTR).
-  direction: ltr;
-
-  input {
-    padding-inline-end: 2.75rem;
-  }
-}
-
-.eye-btn {
-  position: absolute;
-  inset-inline-end: 0.625rem;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  padding: 0.25rem;
-  border-radius: 4px;
-  transition: color 0.15s;
-
-  &:hover {
-    color: var(--text-primary);
-  }
-}
-
-input.field-error {
-  border-color: var(--priority-high);
-
-  &:focus {
-    border-color: var(--priority-high);
-  }
-}
-
-.field-error-msg {
-  font-size: 0.8rem;
-  color: var(--priority-high);
-  margin-top: 0.1rem;
-}
-
-.error-msg {
-  font-size: 0.875rem;
-  color: var(--priority-high);
-  font-weight: 500;
-}
-
-.submit-btn {
-  width: 100%;
-  padding: 0.75rem 1.25rem;
-  background: var(--brand);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius);
-  font-size: 1rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.15s;
-  margin-top: 0.25rem;
-
-  &:hover:not(:disabled) {
-    background: var(--brand-hover);
-  }
-
-  &:disabled {
-    opacity: 0.65;
-    cursor: not-allowed;
-  }
 }

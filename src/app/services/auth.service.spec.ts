@@ -1,162 +1,147 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from './auth.service';
-import { User } from '../models/task.model';
+import { SupabaseService } from './supabase.service';
 
-const mockUser: User = {
-  id: 1,
-  name: 'Alice Johnson',
+type AuthCb = (event: string, session: unknown) => void;
+
+/** Fake of supabase.auth — records calls and lets tests drive the auth state. */
+class FakeAuth {
+  private cb: AuthCb = () => {};
+  session: { user: Record<string, unknown> } | null = null;
+
+  signInWithPassword = vi.fn(async () => ({ data: {}, error: null as unknown }));
+  signUp = vi.fn(async () => ({ data: { session: null }, error: null as unknown }));
+  signInWithOtp = vi.fn(async () => ({ data: {}, error: null as unknown }));
+  signInWithOAuth = vi.fn(async () => ({ data: {}, error: null as unknown }));
+  resetPasswordForEmail = vi.fn(async () => ({ data: {}, error: null as unknown }));
+  updateUser = vi.fn(async () => ({ data: {}, error: null as unknown }));
+  signOut = vi.fn(async () => ({ error: null as unknown }));
+
+  async getSession() {
+    return { data: { session: this.session }, error: null };
+  }
+
+  onAuthStateChange(cb: AuthCb) {
+    this.cb = cb;
+    return { data: { subscription: { unsubscribe() {} } } };
+  }
+
+  /** Test helper: simulate Supabase emitting a new session (or null). */
+  emit(session: { user: Record<string, unknown> } | null) {
+    this.session = session;
+    this.cb('CHANGED', session);
+  }
+}
+
+const userWith = (over: Record<string, unknown>) => ({
+  id: 'uid-1',
   email: 'alice@example.com',
-  password: 'alice123',
-  token: 'tok-alice-a1b2c3',
-};
+  user_metadata: {},
+  ...over,
+});
 
-// localStorage is not fully implemented in happy-dom; use a plain-object mock
-let store: Record<string, string> = {};
-const localStorageMock = {
-  getItem: (key: string) => store[key] ?? null,
-  setItem: (key: string, value: string) => { store[key] = value; },
-  removeItem: (key: string) => { delete store[key]; },
-  clear: () => { store = {}; },
-};
-
-vi.stubGlobal('localStorage', localStorageMock);
+function setup(initialSession: { user: Record<string, unknown> } | null = null) {
+  const auth = new FakeAuth();
+  auth.session = initialSession;
+  TestBed.configureTestingModule({
+    providers: [{ provide: SupabaseService, useValue: { client: { auth } } }],
+  });
+  const service = TestBed.inject(AuthService);
+  return { auth, service };
+}
 
 describe('AuthService', () => {
-  let service: AuthService;
-  let http: HttpTestingController;
-
-  beforeEach(() => {
-    store = {};
-    TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
-    });
-    service = TestBed.inject(AuthService);
-    http = TestBed.inject(HttpTestingController);
-  });
-
-  afterEach(() => {
-    http.verify();
-    store = {};
-  });
-
-  // ── Construction ──────────────────────────────────────────────
-
-  it('should be created', () => {
+  it('is created', () => {
+    const { service } = setup();
     expect(service).toBeTruthy();
   });
 
-  it('should restore session from localStorage on init', () => {
-    store['stack_user'] = JSON.stringify(mockUser);
-    TestBed.resetTestingModule();
-    TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
-    });
-    const fresh = TestBed.inject(AuthService);
-    http = TestBed.inject(HttpTestingController);
-    expect(fresh.getCurrentUser()).toEqual(mockUser);
-    expect(fresh.isLoggedIn()).toBe(true);
-  });
-
-  it('should start with no user when localStorage is empty', () => {
+  it('starts logged out when there is no stored session', async () => {
+    const { service } = setup(null);
+    await service.whenReady();
     expect(service.getCurrentUser()).toBeNull();
     expect(service.isLoggedIn()).toBe(false);
   });
 
-  // ── login() ───────────────────────────────────────────────────
+  it('restores the user from a stored session on init', async () => {
+    const { service } = setup({ user: userWith({ user_metadata: { name: 'Alice Johnson' } }) });
+    await service.whenReady();
 
-  it('should set currentUser and save to localStorage on successful login', () => {
-    service.login('alice@example.com', 'alice123').subscribe();
-    http.expectOne(r => r.url.includes('/users')).flush([mockUser]);
-
-    expect(service.getCurrentUser()).toEqual(mockUser);
     expect(service.isLoggedIn()).toBe(true);
-    expect(JSON.parse(store['stack_user'])).toEqual(mockUser);
+    expect(service.getCurrentUser()).toEqual({
+      id: 'uid-1',
+      email: 'alice@example.com',
+      name: 'Alice Johnson',
+    });
   });
 
-  it('should not set currentUser when credentials return no match', () => {
-    service.login('wrong@example.com', 'wrong').subscribe();
-    http.expectOne(r => r.url.includes('/users')).flush([]);
+  it('derives the name from full_name, then email local-part', async () => {
+    const { service, auth } = setup(null);
+    await service.whenReady();
 
-    expect(service.getCurrentUser()).toBeNull();
+    auth.emit({ user: userWith({ user_metadata: { full_name: 'Bob Smith' } }) });
+    expect(service.getCurrentUser()?.name).toBe('Bob Smith');
+
+    auth.emit({ user: userWith({ email: 'carol@example.com', user_metadata: {} }) });
+    expect(service.getCurrentUser()?.name).toBe('carol');
+  });
+
+  it('updates currentUser$ when the auth state changes', async () => {
+    const { service, auth } = setup(null);
+    await service.whenReady();
+
+    auth.emit({ user: userWith({ user_metadata: { name: 'Alice' } }) });
+    expect(await firstValueFrom(service.currentUser$)).toMatchObject({ name: 'Alice' });
+
+    auth.emit(null);
+    expect(await firstValueFrom(service.currentUser$)).toBeNull();
     expect(service.isLoggedIn()).toBe(false);
-    expect(store['stack_user']).toBeUndefined();
   });
 
-  // Regression: db.json stores user ids as strings (e.g. "1"), but Task.userId
-  // in the app is always a number. If login() didn't coerce the id, a task
-  // created right after login would be saved with a string userId and would
-  // fail to match `GET /tasks?userId=1` after a reload — i.e. it would
-  // silently disappear. See auth.service.ts login().
-  it('should coerce a string id from the server into a number', () => {
-    service.login('alice@example.com', 'alice123').subscribe();
-    http.expectOne(r => r.url.includes('/users')).flush([{ ...mockUser, id: '1' }]);
-
-    const user = service.getCurrentUser();
-    expect(user?.id).toBe(1);
-    expect(typeof user?.id).toBe('number');
-    expect(typeof JSON.parse(store['stack_user']).id).toBe('number');
+  it('delegates sign-in to supabase', async () => {
+    const { service, auth } = setup();
+    await service.signInWithPassword('alice@example.com', 'pw');
+    expect(auth.signInWithPassword).toHaveBeenCalledWith({
+      email: 'alice@example.com',
+      password: 'pw',
+    });
   });
 
-  it('should call the correct URL with email and password', () => {
-    service.login('alice@example.com', 'alice123').subscribe();
-    const req = http.expectOne(
-      'http://localhost:3000/users?email=alice@example.com&password=alice123'
+  it('passes the display name as metadata on sign-up', async () => {
+    const { service, auth } = setup();
+    await service.signUp('new@example.com', 'pw', 'New User');
+    expect(auth.signUp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'new@example.com',
+        password: 'pw',
+        options: expect.objectContaining({ data: { name: 'New User' } }),
+      }),
     );
-    expect(req.request.method).toBe('GET');
-    req.flush([mockUser]);
   });
 
-  it('should emit the logged-in user on currentUser$', async () => {
-    service.login('alice@example.com', 'alice123').subscribe();
-    http.expectOne(r => r.url.includes('/users')).flush([mockUser]);
-
-    const user = await firstValueFrom(service.currentUser$);
-    expect(user).toEqual(mockUser);
+  it('requests a magic link with user creation enabled', async () => {
+    const { service, auth } = setup();
+    await service.signInWithMagicLink('x@example.com');
+    expect(auth.signInWithOtp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'x@example.com',
+        options: expect.objectContaining({ shouldCreateUser: true }),
+      }),
+    );
   });
 
-  // ── logout() ──────────────────────────────────────────────────
-
-  it('should clear currentUser and localStorage on logout', () => {
-    service.login('alice@example.com', 'alice123').subscribe();
-    http.expectOne(r => r.url.includes('/users')).flush([mockUser]);
-
-    service.logout();
-
-    expect(service.getCurrentUser()).toBeNull();
-    expect(service.isLoggedIn()).toBe(false);
-    expect(store['stack_user']).toBeUndefined();
+  it('starts the Google OAuth flow', async () => {
+    const { service, auth } = setup();
+    await service.signInWithGoogle();
+    expect(auth.signInWithOAuth).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: 'google' }),
+    );
   });
 
-  it('should emit null on currentUser$ after logout', async () => {
-    service.login('alice@example.com', 'alice123').subscribe();
-    http.expectOne(r => r.url.includes('/users')).flush([mockUser]);
-
-    service.logout();
-    const user = await firstValueFrom(service.currentUser$);
-    expect(user).toBeNull();
-  });
-
-  // ── getToken() ────────────────────────────────────────────────
-
-  it('should return null when not logged in', () => {
-    expect(service.getToken()).toBeNull();
-  });
-
-  it('should return the user token when logged in', () => {
-    service.login('alice@example.com', 'alice123').subscribe();
-    http.expectOne(r => r.url.includes('/users')).flush([mockUser]);
-
-    expect(service.getToken()).toBe('tok-alice-a1b2c3');
-  });
-
-  it('should return null after logout', () => {
-    service.login('alice@example.com', 'alice123').subscribe();
-    http.expectOne(r => r.url.includes('/users')).flush([mockUser]);
-
-    service.logout();
-    expect(service.getToken()).toBeNull();
+  it('signs out via supabase', async () => {
+    const { service, auth } = setup();
+    await service.signOut();
+    expect(auth.signOut).toHaveBeenCalled();
   });
 });

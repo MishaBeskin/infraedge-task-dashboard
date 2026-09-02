@@ -10,7 +10,6 @@ import { AsyncPipe } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Task, Status } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
-import { AuthService } from '../../services/auth.service';
 import { I18nService } from '../../services/i18n.service';
 import { HeaderComponent } from '../../components/header/header.component';
 import { KanbanColumnComponent } from '../../components/kanban-column/kanban-column.component';
@@ -26,7 +25,6 @@ import { TaskDialogComponent } from '../../components/task-dialog/task-dialog.co
 })
 export class BoardComponent implements OnInit {
   private taskService = inject(TaskService);
-  private authService = inject(AuthService);
   protected i18n = inject(I18nService);
 
   loading$ = this.taskService.loading$;
@@ -52,21 +50,18 @@ export class BoardComponent implements OnInit {
     let tasks = this.allTasks();
     const pf = this.priorityFilter();
     const sq = this.searchQuery().trim().toLowerCase();
-    if (pf !== 'all') tasks = tasks.filter(t => t.priority === pf);
-    if (sq) tasks = tasks.filter(t => t.title.toLowerCase().includes(sq));
+    if (pf !== 'all') tasks = tasks.filter((t) => t.priority === pf);
+    if (sq) tasks = tasks.filter((t) => t.title.toLowerCase().includes(sq));
     return tasks;
   });
 
-  todoTasks = computed(() => this.filtered().filter(t => t.status === 'todo'));
-  inProgressTasks = computed(() => this.filtered().filter(t => t.status === 'in-progress'));
-  doneTasks = computed(() => this.filtered().filter(t => t.status === 'done'));
+  todoTasks = computed(() => this.filtered().filter((t) => t.status === 'todo'));
+  inProgressTasks = computed(() => this.filtered().filter((t) => t.status === 'in-progress'));
+  doneTasks = computed(() => this.filtered().filter((t) => t.status === 'done'));
   filteredCount = computed(() => this.filtered().length);
 
   ngOnInit() {
-    const user = this.authService.getCurrentUser();
-    if (user) {
-      this.taskService.loadTasksForUser(user.id).subscribe();
-    }
+    this.taskService.loadTasks().subscribe();
   }
 
   setPriorityFilter(f: 'all' | 'high' | 'medium' | 'low') {
@@ -102,9 +97,18 @@ export class BoardComponent implements OnInit {
   }
 
   onTaskDropped({ taskId, newStatus }: { taskId: string; newStatus: Status }) {
-    const task = this.allTasks().find(t => String(t.id) === taskId);
+    const task = this.allTasks().find((t) => t.id === taskId);
     if (task && task.status !== newStatus) {
-      this.taskService.updateTask(task.id, { status: newStatus }).subscribe();
+      // Drop the card at the bottom of the target column.
+      const columnMax = Math.max(
+        0,
+        ...this.allTasks()
+          .filter((t) => t.status === newStatus)
+          .map((t) => t.position),
+      );
+      this.taskService
+        .updateTask(task.id, { status: newStatus, position: columnMax + 1 })
+        .subscribe();
     }
   }
 }

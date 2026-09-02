@@ -1,60 +1,101 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject } from 'rxjs';
-import { tap, catchError } from 'rxjs/operators';
-import { of } from 'rxjs';
-import { User } from '../models/task.model';
-import { environment } from '../../environments/environment';
+import type { AuthChangeEvent, Session, User as SbUser } from '@supabase/supabase-js';
+import { SupabaseService } from './supabase.service';
+import { AppUser } from '../models/task.model';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private http = inject(HttpClient);
-  private currentUserSubject = new BehaviorSubject<User | null>(null);
+  private supabase = inject(SupabaseService).client;
+
+  private currentUserSubject = new BehaviorSubject<AppUser | null>(null);
   currentUser$ = this.currentUserSubject.asObservable();
 
+  /**
+   * Resolves once the initial session has been read from storage. The auth
+   * guard and an APP_INITIALIZER both await this so a hard refresh never
+   * bounces an already-logged-in user to /login.
+   */
+  private readonly ready: Promise<void>;
+
   constructor() {
-    const stored = localStorage.getItem('stack_user');
-    if (stored) {
-      this.currentUserSubject.next(JSON.parse(stored) as User);
-    }
+    this.ready = this.supabase.auth.getSession().then(({ data }) => {
+      this.currentUserSubject.next(toAppUser(data.session?.user ?? null));
+    });
+
+    this.supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+      this.currentUserSubject.next(toAppUser(session?.user ?? null));
+    });
   }
 
-  login(email: string, password: string) {
-    return this.http
-      .get<User[]>(`${environment.apiUrl}/users?email=${email}&password=${password}`)
-      .pipe(
-        tap(users => {
-          if (users.length > 0) {
-            const user = { ...users[0], id: Number(users[0].id) };
-            localStorage.setItem('stack_user', JSON.stringify(user));
-            this.currentUserSubject.next(user);
-          }
-        })
-      );
+  whenReady(): Promise<void> {
+    return this.ready;
   }
 
-  // Render.com free tier spins down after 15 min of inactivity.
-  // Call this when the login page loads so the server is warm before the user submits.
-  warmUp() {
-    this.http.get(`${environment.apiUrl}/users`, { params: { _limit: '1' } })
-      .pipe(catchError(() => of(null)))
-      .subscribe();
+  /** Email + password. Rejects (throws in the awaited call) on bad credentials. */
+  signInWithPassword(email: string, password: string) {
+    return this.supabase.auth.signInWithPassword({ email, password });
   }
 
-  logout() {
-    localStorage.removeItem('stack_user');
-    this.currentUserSubject.next(null);
+  /** Register with email + password. With email confirmation off this returns a
+   *  live session immediately. */
+  signUp(email: string, password: string, name: string) {
+    return this.supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name }, emailRedirectTo: callbackUrl() },
+    });
+  }
+
+  /** Passwordless: emails a one-time login link. Creates the user if new. */
+  signInWithMagicLink(email: string) {
+    return this.supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: callbackUrl(), shouldCreateUser: true },
+    });
+  }
+
+  /** Redirects the browser to Google, then back to /auth/callback. */
+  signInWithGoogle() {
+    return this.supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: callbackUrl() },
+    });
+  }
+
+  sendPasswordReset(email: string) {
+    return this.supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+  }
+
+  updatePassword(password: string) {
+    return this.supabase.auth.updateUser({ password });
+  }
+
+  signOut() {
+    return this.supabase.auth.signOut();
   }
 
   isLoggedIn(): boolean {
     return this.currentUserSubject.getValue() !== null;
   }
 
-  getToken(): string | null {
-    return this.currentUserSubject.getValue()?.token ?? null;
-  }
-
-  getCurrentUser(): User | null {
+  getCurrentUser(): AppUser | null {
     return this.currentUserSubject.getValue();
   }
+}
+
+function callbackUrl(): string {
+  return `${window.location.origin}/auth/callback`;
+}
+
+function toAppUser(user: SbUser | null): AppUser | null {
+  if (!user) return null;
+  const meta = user.user_metadata ?? {};
+  const name =
+    (meta['name'] as string | undefined) ||
+    (meta['full_name'] as string | undefined) ||
+    (user.email ? user.email.split('@')[0] : 'User');
+  return { id: user.id, email: user.email ?? '', name };
 }

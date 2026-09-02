@@ -5,8 +5,10 @@
 ## Project overview
 
 Build a SaaS-style Kanban task management app called "Stack" using Angular 17+.
-Backend is json-server running on http://localhost:3000 with db.json already provided.
-The app is in Hebrew and RTL direction throughout.
+Backend is Supabase (hosted Postgres + Auth). The Angular app talks to it
+directly through `@supabase/supabase-js` — there is no custom API server. Schema
+and seed data live in `supabase/*.sql`.
+The app is in Hebrew and RTL by default, with an English/LTR runtime toggle.
 Do NOT use any component library (no Angular Material, no PrimeNG). All UI is custom SCSS.
 
 ## Tech stack
@@ -14,8 +16,9 @@ Do NOT use any component library (no Angular Material, no PrimeNG). All UI is cu
 - Angular 17, standalone components, strict TypeScript
 - No NgModules anywhere
 - SCSS for styling, CSS custom properties for design tokens
-- json-server on port 3000 as the mock backend
-- Functional guards and interceptors (not class-based)
+- Supabase (`@supabase/supabase-js`) for data + auth; no HttpClient, no API server
+- Row-Level Security scopes every `tasks` query to the signed-in user
+- Functional guards (not class-based)
 - OnPush change detection on all components
 - Angular 17 control flow syntax (@if, @for) — never *ngIf or *ngFor
 
@@ -41,20 +44,26 @@ Global body: direction rtl, font system-ui, background var(--bg).
 
 File: src/app/models/task.model.ts
 
-interface User { id, name, email, password, token }
-interface Task { id, title, status: 'todo'|'in-progress'|'done', priority: 'high'|'medium'|'low', userId, description? }
+interface AppUser { id: string, name, email }   // derived from the Supabase session; no password/token client-side
+interface Task { id: string, title, status: 'todo'|'in-progress'|'done', priority: 'high'|'medium'|'low', description?, position, createdAt, updatedAt }
+type NewTask = Pick<Task,'title'|'status'|'priority'> & { description? }
+type TaskPatch = Partial<Pick<Task,'title'|'description'|'status'|'priority'|'position'>>
 type Priority = Task['priority']
 type Status = Task['status']
 
-## API endpoints (json-server on port 3000)
+## Data access (Supabase)
 
-- GET /users?email=EMAIL&password=PASSWORD → login
-- GET /tasks?userId=N → get user tasks
-- POST /tasks → create task
-- PATCH /tasks/:id → update task
-- DELETE /tasks/:id → delete task
+All access goes through `SupabaseService` (owns the single `SupabaseClient`).
 
-All outgoing requests must include Authorization: Bearer TOKEN header.
+- Auth: `supabase.auth` — password, magic link, Google OAuth. Session persisted
+  by the client, restored on load, refreshed automatically.
+- `tasks` table: `supabase.from('tasks').select/insert/update/delete`. RLS scopes
+  rows to `auth.uid()`, so the client never sends a user id. `user_id` defaults
+  to `auth.uid()` in the DB.
+- DB columns are snake_case (`user_id`, `created_at`, `position`); TaskService
+  maps rows to the camelCase `Task` interface.
+- Schema: `supabase/migrations/0001_init.sql`. Seed users + tasks:
+  `supabase/seed.sql` (fallback `scripts/create-users.mjs`).
 
 ## File structure to create
 
@@ -97,26 +106,26 @@ new-task-dialog.component.scss
 
 ## AuthService (src/app/services/auth.service.ts)
 
-- Injectable providedIn root
-- HttpClient calls GET /users?email=&password= to login
-- On success: saves user to localStorage key 'stack_user', updates BehaviorSubject<User|null> currentUser$
-- On app init: reads localStorage and restores session
-- Methods: login(email,password), logout(), isLoggedIn(), getToken(), getCurrentUser()
-
-## Auth interceptor (src/app/interceptors/auth.interceptor.ts)
-
-- Functional HttpInterceptorFn named authInterceptor
-- Reads token from AuthService.getToken()
-- Clones request with Authorization: Bearer TOKEN header if token exists
+- Injectable providedIn root; wraps `supabase.auth`
+- `currentUser$` BehaviorSubject<AppUser|null>, fed by `onAuthStateChange`
+- `whenReady()` resolves once the initial `getSession()` completes (awaited by
+  the guard and an APP_INITIALIZER so a hard refresh doesn't bounce to /login)
+- Methods: signInWithPassword, signUp, signInWithMagicLink, signInWithGoogle,
+  sendPasswordReset, updatePassword, signOut, isLoggedIn, getCurrentUser
+- No interceptor: the Supabase client attaches its own auth headers
 
 ## Auth guard (src/app/guards/auth.guard.ts)
 
-- Functional CanActivateFn named authGuard
-- Returns true if AuthService.isLoggedIn(), else navigates to /login and returns false
+- Functional CanActivateFn named authGuard, async
+- `await authService.whenReady()`, then true if `isLoggedIn()`, else
+  `router.createUrlTree(['/login'])`
 
 ## App routes (src/app/app.routes.ts)
 
 - /login → LoginComponent (lazy loaded)
+- /register → RegisterComponent (lazy loaded)
+- /auth/callback → AuthCallbackComponent (OAuth / magic-link redirect target)
+- /reset-password → ResetPasswordComponent (password-recovery target)
 - /board → BoardComponent (lazy loaded, canActivate: authGuard)
 - '' → redirect to /board
 - \*\* → redirect to /board
@@ -124,7 +133,7 @@ new-task-dialog.component.scss
 ## App config (src/app/app.config.ts)
 
 - provideRouter(routes)
-- provideHttpClient(withInterceptors([authInterceptor]))
+- provideAppInitializer(() => inject(AuthService).whenReady())
 
 ## App component (src/app/app.component.ts)
 
@@ -136,10 +145,10 @@ new-task-dialog.component.scss
 - BehaviorSubject<Task[]> tasks$ (private, expose as asObservable)
 - BehaviorSubject<boolean> loading$
 - BehaviorSubject<string|null> error$
-- loadTasksForUser(userId): GET /tasks?userId=N, updates tasks$, loading$, error$
-- createTask(task): POST /tasks, appends to tasks$ BehaviorSubject
-- updateTask(id, patch): PATCH /tasks/:id, updates matching item in tasks$
-- deleteTask(id): DELETE /tasks/:id, removes from tasks$
+- loadTasks(): select('*').order('position'); updates tasks$, loading$, error$ (no userId — RLS scopes it)
+- createTask(NewTask): insert (position = max+1), appends to tasks$
+- updateTask(id, TaskPatch): optimistic update + cancels any in-flight PATCH for the same id, then update().eq('id',id)
+- deleteTask(id): delete().eq('id',id), removes from tasks$
 
 ## LoginComponent
 
@@ -263,10 +272,20 @@ Template:
 - All components are standalone: true
 - Commit message convention: feat(scope): description
 
-## Mock API
+## Backend (Supabase)
 
-Run backend:
+No local server — the app points straight at the hosted Supabase project.
+
+1. Create a Supabase project; copy the Project URL + publishable/anon key into
+   `src/environments/environment.ts` (and `environment.prod.ts` / Vercel env).
+2. In the SQL editor run `supabase/migrations/0001_init.sql`, then
+   `supabase/seed.sql` (imports `alice@example.com` / `alice123` and
+   `bob@example.com` / `bob123`).
+3. Auth → Providers: enable Google (needs a Google Cloud OAuth client with
+   redirect URI `https://<ref>.supabase.co/auth/v1/callback`).
+4. Auth → URL config: add `http://localhost:4200` and the Vercel domain to the
+   redirect allow-list.
 
 ```bash
-npx json-server db.json --port 3000
+npm start   # ng serve on :4200 — that's the whole dev loop now
 ```

@@ -1,261 +1,298 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { firstValueFrom } from 'rxjs';
 import { TaskService } from './task.service';
-import { Task } from '../models/task.model';
+import { SupabaseService } from './supabase.service';
 
-const mockTask = (overrides: Partial<Task> = {}): Task => ({
-  id: 1,
+// ── Minimal in-memory fake of the Supabase query builder ──────────────────────
+// Implements just enough of .from(table).select/insert/update/delete/eq/order/
+// single to exercise TaskService. Every builder is thenable, so `await` works.
+
+interface Row {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  description: string | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+}
+
+class FakeTable {
+  rows: Row[] = [];
+  private seq = 100;
+  /** When true, the next query resolves with an error and clears the flag. */
+  failNext = false;
+
+  nextId(): string {
+    return String(++this.seq);
+  }
+
+  seed(rows: Partial<Row>[]): void {
+    this.rows = rows.map((r, i) => ({
+      id: String(i + 1),
+      title: 'Task',
+      status: 'todo',
+      priority: 'medium',
+      description: null,
+      position: i + 1,
+      created_at: 't0',
+      updated_at: 't0',
+      user_id: 'u1',
+      ...r,
+    }));
+  }
+}
+
+class FakeQuery {
+  private op: 'select' | 'insert' | 'update' | 'delete' = 'select';
+  private payload: Record<string, unknown> | undefined;
+  private filters: Array<[string, unknown]> = [];
+  private wantSingle = false;
+
+  constructor(private table: FakeTable) {}
+
+  select() {
+    return this;
+  }
+  order() {
+    return this;
+  }
+  single() {
+    this.wantSingle = true;
+    return this;
+  }
+  eq(col: string, val: unknown) {
+    this.filters.push([col, val]);
+    return this;
+  }
+  insert(payload: Record<string, unknown>) {
+    this.op = 'insert';
+    this.payload = payload;
+    return this;
+  }
+  update(payload: Record<string, unknown>) {
+    this.op = 'update';
+    this.payload = payload;
+    return this;
+  }
+  delete() {
+    this.op = 'delete';
+    return this;
+  }
+
+  private match = (r: Row) =>
+    this.filters.every(([c, v]) => (r as unknown as Record<string, unknown>)[c] === v);
+
+  private run(): { data: unknown; error: unknown } {
+    if (this.table.failNext) {
+      this.table.failNext = false;
+      return { data: null, error: { message: 'boom' } };
+    }
+    switch (this.op) {
+      case 'select': {
+        const rows = this.table.rows.filter(this.match);
+        return { data: this.wantSingle ? (rows[0] ?? null) : rows, error: null };
+      }
+      case 'insert': {
+        const row: Row = {
+          id: this.table.nextId(),
+          title: '',
+          status: 'todo',
+          priority: 'medium',
+          description: null,
+          position: 0,
+          created_at: 't1',
+          updated_at: 't1',
+          user_id: 'u1',
+          ...(this.payload as Partial<Row>),
+        };
+        this.table.rows.push(row);
+        return { data: this.wantSingle ? row : [row], error: null };
+      }
+      case 'update': {
+        let updated: Row | null = null;
+        this.table.rows = this.table.rows.map((r) => {
+          if (this.match(r)) {
+            updated = { ...r, ...(this.payload as Partial<Row>) };
+            return updated;
+          }
+          return r;
+        });
+        return { data: this.wantSingle ? updated : updated ? [updated] : [], error: null };
+      }
+      case 'delete': {
+        this.table.rows = this.table.rows.filter((r) => !this.match(r));
+        return { data: null, error: null };
+      }
+    }
+  }
+
+  then<T>(onfulfilled?: (value: { data: unknown; error: unknown }) => T | PromiseLike<T>) {
+    return Promise.resolve(this.run()).then(onfulfilled ?? undefined);
+  }
+}
+
+const mkTask = (over: Partial<Row> = {}): Partial<Row> => ({
   title: 'Test task',
   status: 'todo',
   priority: 'medium',
-  userId: 1,
-  ...overrides,
+  ...over,
 });
 
 describe('TaskService', () => {
   let service: TaskService;
-  let http: HttpTestingController;
+  let table: FakeTable;
 
   beforeEach(() => {
+    table = new FakeTable();
+    const supabaseMock = {
+      client: { from: () => new FakeQuery(table) },
+    };
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [{ provide: SupabaseService, useValue: supabaseMock }],
     });
     service = TestBed.inject(TaskService);
-    http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => http.verify());
+  // ── Construction ────────────────────────────────────────────────
 
-  // ── Construction ──────────────────────────────────────────────
-
-  it('should be created', () => {
+  it('is created', () => {
     expect(service).toBeTruthy();
   });
 
-  it('should start with empty tasks', async () => {
+  it('starts empty, not loading, no error', async () => {
     expect(await firstValueFrom(service.tasks$)).toEqual([]);
-  });
-
-  it('should start with loading false', async () => {
     expect(await firstValueFrom(service.loading$)).toBe(false);
-  });
-
-  it('should start with no error', async () => {
     expect(await firstValueFrom(service.error$)).toBeNull();
   });
 
-  // ── loadTasksForUser() ────────────────────────────────────────
+  // ── loadTasks() ────────────────────────────────────────────────
 
-  it('should call the correct URL', () => {
-    service.loadTasksForUser(1).subscribe();
-    const req = http.expectOne('http://localhost:3000/tasks?userId=1');
-    expect(req.request.method).toBe('GET');
-    req.flush([]);
+  it('populates tasks$ with mapped rows', async () => {
+    table.seed([
+      mkTask({ id: '1', title: 'One', position: 1 }),
+      mkTask({ id: '2', title: 'Two', position: 2 }),
+    ]);
+
+    await firstValueFrom(service.loadTasks());
+
+    const tasks = await firstValueFrom(service.tasks$);
+    expect(tasks.map((t) => t.title)).toEqual(['One', 'Two']);
+    expect(tasks[0]).toMatchObject({ id: '1', createdAt: 't0', updatedAt: 't0' });
+    expect(tasks[0]).not.toHaveProperty('user_id');
   });
 
-  it('should set loading true before response and false after', async () => {
-    const loadingStates: boolean[] = [];
-    service.loading$.subscribe(l => loadingStates.push(l));
-
-    service.loadTasksForUser(1).subscribe();
-    expect(loadingStates).toContain(true);
-
-    http.expectOne(r => r.url.includes('/tasks')).flush([mockTask()]);
-    expect(loadingStates[loadingStates.length - 1]).toBe(false);
+  it('toggles loading true then false', async () => {
+    const seen: boolean[] = [];
+    service.loading$.subscribe((l) => seen.push(l));
+    await firstValueFrom(service.loadTasks());
+    expect(seen).toContain(true);
+    expect(seen[seen.length - 1]).toBe(false);
   });
 
-  it('should populate tasks$ with the server response', async () => {
-    const tasks = [mockTask({ id: 1 }), mockTask({ id: 2, title: 'Another' })];
-    service.loadTasksForUser(1).subscribe();
-    http.expectOne(r => r.url.includes('/tasks')).flush(tasks);
-
-    expect(await firstValueFrom(service.tasks$)).toEqual(tasks);
-  });
-
-  it('should set error$ on HTTP failure', async () => {
-    service.loadTasksForUser(1).subscribe();
-    http.expectOne(r => r.url.includes('/tasks')).flush(null, { status: 500, statusText: 'Error' });
-
-    // The service emits a translation key; the board resolves it via I18nService.
+  it('sets error$ to the translation key on failure', async () => {
+    table.failNext = true;
+    await firstValueFrom(service.loadTasks());
     expect(await firstValueFrom(service.error$)).toBe('errors.loadTasks');
-  });
-
-  it('should set loading false on HTTP failure', async () => {
-    service.loadTasksForUser(1).subscribe();
-    http.expectOne(r => r.url.includes('/tasks')).flush(null, { status: 500, statusText: 'Error' });
-
     expect(await firstValueFrom(service.loading$)).toBe(false);
   });
 
-  it('should clear error$ before a new load', async () => {
-    service.loadTasksForUser(1).subscribe();
-    http.expectOne(r => r.url.includes('/tasks')).flush(null, { status: 500, statusText: 'Error' });
-
-    service.loadTasksForUser(1).subscribe();
+  it('clears error$ before a new load', async () => {
+    table.failNext = true;
+    await firstValueFrom(service.loadTasks());
+    await firstValueFrom(service.loadTasks());
     expect(await firstValueFrom(service.error$)).toBeNull();
-    http.expectOne(r => r.url.includes('/tasks')).flush([]);
   });
 
-  // ── createTask() ──────────────────────────────────────────────
+  // ── createTask() ───────────────────────────────────────────────
 
-  it('should POST to /tasks', () => {
-    service.createTask({ title: 'New', status: 'todo', priority: 'medium', userId: 1 }).subscribe();
-    const req = http.expectOne('http://localhost:3000/tasks');
-    expect(req.request.method).toBe('POST');
-    req.flush(mockTask({ id: 99, title: 'New' }));
-  });
+  it('appends the created task and assigns position max+1', async () => {
+    table.seed([mkTask({ id: '1', position: 4 })]);
+    await firstValueFrom(service.loadTasks());
 
-  it('should append the created task to tasks$', async () => {
-    const created = mockTask({ id: 99, title: 'New' });
-    service.createTask({ title: 'New', status: 'todo', priority: 'medium', userId: 1 }).subscribe();
-    http.expectOne('http://localhost:3000/tasks').flush(created);
+    const created = await firstValueFrom(
+      service.createTask({ title: 'New', status: 'todo', priority: 'high' }),
+    );
 
+    expect(created.position).toBe(5);
     const tasks = await firstValueFrom(service.tasks$);
-    expect(tasks).toContain(created);
+    expect(tasks.map((t) => t.title)).toEqual(['Test task', 'New']);
   });
 
-  it('should preserve existing tasks when creating a new one', async () => {
-    const existing = mockTask({ id: 1 });
-    service.loadTasksForUser(1).subscribe();
-    http.expectOne(r => r.url.includes('/tasks')).flush([existing]);
-
-    const added = mockTask({ id: 2, title: 'Added' });
-    service.createTask({ title: 'Added', status: 'todo', priority: 'low', userId: 1 }).subscribe();
-    http.expectOne('http://localhost:3000/tasks').flush(added);
-
-    const tasks = await firstValueFrom(service.tasks$);
-    expect(tasks.length).toBe(2);
-    expect(tasks).toContain(existing);
-    expect(tasks).toContain(added);
+  it('creates with position 1 when there are no tasks', async () => {
+    const created = await firstValueFrom(
+      service.createTask({ title: 'First', status: 'todo', priority: 'low' }),
+    );
+    expect(created.position).toBe(1);
   });
 
-  // ── updateTask() ──────────────────────────────────────────────
+  // ── updateTask() ───────────────────────────────────────────────
 
-  it('should PATCH /tasks/:id with the given patch', () => {
-    service.updateTask(1, { status: 'done' }).subscribe();
-    const req = http.expectOne('http://localhost:3000/tasks/1');
-    expect(req.request.method).toBe('PATCH');
-    expect(req.request.body).toEqual({ status: 'done' });
-    req.flush(mockTask({ status: 'done' }));
-  });
+  it('reflects the new status immediately, before the request resolves', async () => {
+    table.seed([mkTask({ id: '1', status: 'todo' })]);
+    await firstValueFrom(service.loadTasks());
 
-  it('should replace the updated task in tasks$', async () => {
-    const original = mockTask({ id: 1, status: 'todo' });
-    service.loadTasksForUser(1).subscribe();
-    http.expectOne(r => r.url.includes('/tasks')).flush([original]);
-
-    const updated = { ...original, status: 'in-progress' } as Task;
-    service.updateTask(1, { status: 'in-progress' }).subscribe();
-    http.expectOne('http://localhost:3000/tasks/1').flush(updated);
+    service.updateTask('1', { status: 'in-progress' }); // not awaited
 
     const tasks = await firstValueFrom(service.tasks$);
     expect(tasks[0].status).toBe('in-progress');
   });
 
-  it('should not affect other tasks when updating one', async () => {
-    const t1 = mockTask({ id: 1 });
-    const t2 = mockTask({ id: 2, title: 'Other' });
-    service.loadTasksForUser(1).subscribe();
-    http.expectOne(r => r.url.includes('/tasks')).flush([t1, t2]);
+  it('replaces the task with the server row on success', async () => {
+    table.seed([mkTask({ id: '1', status: 'todo' })]);
+    await firstValueFrom(service.loadTasks());
 
-    service.updateTask(1, { status: 'done' }).subscribe();
-    http.expectOne('http://localhost:3000/tasks/1').flush({ ...t1, status: 'done' });
-
-    const tasks = await firstValueFrom(service.tasks$);
-    expect(tasks.find(t => t.id === 2)).toEqual(t2);
-  });
-
-  // Regression: dragging a card across columns twice in quick succession (e.g.
-  // over a slow connection) used to leave it sitting in the first column until
-  // the first PATCH resolved, and a late/out-of-order response for that first
-  // PATCH could clobber the second, newer status. updateTask() must apply the
-  // status optimistically and cancel any still-pending PATCH for the same task.
-  it('reflects the new status immediately, before the PATCH resolves', async () => {
-    const original = mockTask({ id: 1, status: 'todo' });
-    service.loadTasksForUser(1).subscribe();
-    http.expectOne(r => r.url.includes('/tasks')).flush([original]);
-
-    service.updateTask(1, { status: 'in-progress' }).subscribe();
-
-    const tasks = await firstValueFrom(service.tasks$);
-    expect(tasks[0].status).toBe('in-progress');
-
-    http.expectOne('http://localhost:3000/tasks/1').flush({ ...original, status: 'in-progress' });
-  });
-
-  it('cancels an in-flight update when a newer one for the same task is issued', async () => {
-    const original = mockTask({ id: 1, status: 'todo' });
-    service.loadTasksForUser(1).subscribe();
-    http.expectOne(r => r.url.includes('/tasks')).flush([original]);
-
-    // First drag: todo -> in-progress. Its response never arrives before the
-    // second drag happens (slow connection).
-    service.updateTask(1, { status: 'in-progress' }).subscribe();
-    const staleReq = http.expectOne('http://localhost:3000/tasks/1');
-
-    // Second drag before the first resolves: in-progress -> done.
-    service.updateTask(1, { status: 'done' }).subscribe();
-    expect(staleReq.cancelled).toBe(true);
-
-    // Even though the stale request now resolves, it must not overwrite
-    // the newer status.
-    const freshReq = http.expectOne('http://localhost:3000/tasks/1');
-    freshReq.flush({ ...original, status: 'done' });
+    await firstValueFrom(service.updateTask('1', { status: 'done' }));
 
     const tasks = await firstValueFrom(service.tasks$);
     expect(tasks[0].status).toBe('done');
   });
 
-  it('reverts the optimistic status if the PATCH fails', async () => {
-    const original = mockTask({ id: 1, status: 'todo' });
-    service.loadTasksForUser(1).subscribe();
-    http.expectOne(r => r.url.includes('/tasks')).flush([original]);
+  it('keeps the newer status when a second update supersedes an in-flight one', async () => {
+    table.seed([mkTask({ id: '1', status: 'todo' })]);
+    await firstValueFrom(service.loadTasks());
 
-    let error: unknown;
-    service.updateTask(1, { status: 'in-progress' }).subscribe({ error: e => (error = e) });
-    http.expectOne('http://localhost:3000/tasks/1').flush(null, { status: 500, statusText: 'Error' });
+    service.updateTask('1', { status: 'in-progress' });
+    service.updateTask('1', { status: 'done' });
 
-    expect(error).toBeTruthy();
+    // let both microtask chains settle
+    await new Promise((r) => setTimeout(r));
+
+    const tasks = await firstValueFrom(service.tasks$);
+    expect(tasks[0].status).toBe('done');
+  });
+
+  it('reverts the optimistic change if the request fails', async () => {
+    table.seed([mkTask({ id: '1', status: 'todo' })]);
+    await firstValueFrom(service.loadTasks());
+
+    table.failNext = true;
+    let errored = false;
+    await new Promise<void>((resolve) => {
+      service.updateTask('1', { status: 'in-progress' }).subscribe({
+        error: () => {
+          errored = true;
+          resolve();
+        },
+      });
+    });
+
+    expect(errored).toBe(true);
     const tasks = await firstValueFrom(service.tasks$);
     expect(tasks[0].status).toBe('todo');
   });
 
-  // ── deleteTask() ──────────────────────────────────────────────
+  // ── deleteTask() ───────────────────────────────────────────────
 
-  it('should DELETE /tasks/:id', () => {
-    service.deleteTask(1).subscribe();
-    const req = http.expectOne('http://localhost:3000/tasks/1');
-    expect(req.request.method).toBe('DELETE');
-    req.flush(null);
-  });
+  it('removes the deleted task from tasks$', async () => {
+    table.seed([mkTask({ id: '1' }), mkTask({ id: '2', title: 'Keep' })]);
+    await firstValueFrom(service.loadTasks());
 
-  it('should remove the deleted task from tasks$', async () => {
-    const t1 = mockTask({ id: 1 });
-    const t2 = mockTask({ id: 2, title: 'Keep me' });
-    service.loadTasksForUser(1).subscribe();
-    http.expectOne(r => r.url.includes('/tasks')).flush([t1, t2]);
-
-    service.deleteTask(1).subscribe();
-    http.expectOne('http://localhost:3000/tasks/1').flush(null);
+    await firstValueFrom(service.deleteTask('1'));
 
     const tasks = await firstValueFrom(service.tasks$);
-    expect(tasks.length).toBe(1);
-    expect(tasks[0].id).toBe(2);
-  });
-
-  it('should leave all other tasks intact after deletion', async () => {
-    const t1 = mockTask({ id: 1 });
-    const t2 = mockTask({ id: 2 });
-    const t3 = mockTask({ id: 3 });
-    service.loadTasksForUser(1).subscribe();
-    http.expectOne(r => r.url.includes('/tasks')).flush([t1, t2, t3]);
-
-    service.deleteTask(2).subscribe();
-    http.expectOne('http://localhost:3000/tasks/2').flush(null);
-
-    const tasks = await firstValueFrom(service.tasks$);
-    expect(tasks.map(t => t.id)).toEqual([1, 3]);
+    expect(tasks.map((t) => t.id)).toEqual(['2']);
   });
 });

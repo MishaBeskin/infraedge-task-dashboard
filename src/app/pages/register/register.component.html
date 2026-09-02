@@ -1,28 +1,34 @@
-<div class="login-page">
-  <!-- RIGHT panel: branding -->
-  <div class="panel panel--brand">
-    <div class="brand-topbar">
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-topbar">
       <div class="brand-logo">● stack</div>
       <app-language-toggle />
     </div>
-    <div class="brand-body">
-      <h1 class="brand-headline">
-        {{ i18n.t('login.headline.line1') }}<br />{{ i18n.t('login.headline.line2.before')
-        }}<em class="brand-highlight">{{ i18n.t('login.headline.line2.em') }}</em
-        >{{ i18n.t('login.headline.line2.after') }}
-      </h1>
-      <p class="brand-subtitle">{{ i18n.t('login.brandSubtitle') }}</p>
-    </div>
-    <div class="brand-footer">{{ i18n.t('login.footer') }}</div>
-  </div>
 
-  <!-- LEFT panel: form -->
-  <div class="panel panel--form">
-    <div class="form-wrapper">
-      <h2 class="form-title">{{ i18n.t('login.title') }}</h2>
-      <p class="form-subtitle">{{ i18n.t('login.subtitle') }}</p>
+    <h2 class="form-title">{{ i18n.t('register.title') }}</h2>
+    <p class="form-subtitle">{{ i18n.t('register.subtitle') }}</p>
 
+    @if (checkEmail()) {
+      <p class="auth-notice">{{ i18n.t('register.checkEmail') }}</p>
+      <p class="auth-alt">
+        <a routerLink="/login">{{ i18n.t('auth.signIn') }}</a>
+      </p>
+    } @else {
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="field">
+          <label for="name">{{ i18n.t('register.name') }}</label>
+          <input
+            id="name"
+            type="text"
+            formControlName="name"
+            autocomplete="name"
+            [class.field-error]="form.controls.name.invalid && form.controls.name.touched"
+          />
+          @if (form.controls.name.touched && form.controls.name.hasError('required')) {
+            <span class="field-error-msg">{{ i18n.t('register.name.required') }}</span>
+          }
+        </div>
+
         <div class="field">
           <label for="email">{{ i18n.t('login.email') }}</label>
           <input
@@ -31,7 +37,7 @@
             formControlName="email"
             dir="ltr"
             autocomplete="email"
-            placeholder="alice@example.com"
+            placeholder="you@example.com"
             [class.field-error]="form.controls.email.invalid && form.controls.email.touched"
           />
           @if (form.controls.email.touched && form.controls.email.hasError('required')) {
@@ -49,7 +55,7 @@
               [type]="showPassword() ? 'text' : 'password'"
               formControlName="password"
               dir="ltr"
-              autocomplete="current-password"
+              autocomplete="new-password"
               placeholder="••••••••"
               [class.field-error]="form.controls.password.invalid && form.controls.password.touched"
             />
@@ -91,32 +97,26 @@
             </button>
           </div>
           @if (form.controls.password.touched && form.controls.password.hasError('required')) {
-            <span class="field-error-msg">{{ i18n.t('login.password.required') }}</span>
+            <span class="field-error-msg">{{ i18n.t('reset.password.required') }}</span>
+          } @else if (
+            form.controls.password.touched && form.controls.password.hasError('minlength')
+          ) {
+            <span class="field-error-msg">{{ i18n.t('reset.password.minlength') }}</span>
           }
         </div>
 
         @if (error()) {
-          <p class="error-msg">{{ i18n.t(error()!) }}</p>
+          <p class="error-msg">{{ error() }}</p>
         }
 
         <button type="submit" class="submit-btn" [disabled]="loading()">
           @if (loading()) {
-            {{ i18n.t('login.submitting') }}
+            {{ i18n.t('register.submitting') }}
           } @else {
-            {{ i18n.t('login.submit') }}
+            {{ i18n.t('register.submit') }}
           }
         </button>
-
-        <div class="auth-row">
-          <button type="button" class="link-btn" (click)="forgotPassword()" [disabled]="loading()">
-            {{ i18n.t('auth.forgotPassword') }}
-          </button>
-        </div>
       </form>
-
-      @if (notice()) {
-        <p class="auth-notice">{{ i18n.t(notice()!) }}</p>
-      }
 
       <div class="auth-divider">{{ i18n.t('auth.or') }}</div>
 
@@ -142,13 +142,9 @@
         {{ i18n.t('auth.google') }}
       </button>
 
-      <button type="button" class="link-btn" (click)="sendMagicLink()" [disabled]="loading()">
-        {{ i18n.t('auth.magicLink') }}
-      </button>
-
       <p class="auth-alt">
-        {{ i18n.t('auth.noAccount') }} <a routerLink="/register">{{ i18n.t('auth.register') }}</a>
+        {{ i18n.t('auth.haveAccount') }} <a routerLink="/login">{{ i18n.t('auth.signIn') }}</a>
       </p>
-    </div>
+    }
   </div>
 </div>

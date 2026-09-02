@@ -1,7 +1,7 @@
 import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { I18nService } from '../../services/i18n.service';
 import { LanguageToggleComponent } from '../../components/language-toggle/language-toggle.component';
@@ -9,7 +9,7 @@ import { LanguageToggleComponent } from '../../components/language-toggle/langua
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule, LanguageToggleComponent],
+  imports: [ReactiveFormsModule, RouterLink, LanguageToggleComponent],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -26,42 +26,74 @@ export class LoginComponent {
   });
 
   loading = signal(false);
-  error = signal(false);
+  /** Translation key for the current error, or null. */
+  error = signal<string | null>(null);
+  /** Translation key for a non-error notice (magic link / reset email sent). */
+  notice = signal<string | null>(null);
   showPassword = signal(false);
 
   constructor() {
-    this.authService.warmUp();
     this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
-      if (this.error()) this.error.set(false);
+      if (this.error()) this.error.set(null);
     });
   }
 
   togglePassword() {
-    this.showPassword.update(v => !v);
+    this.showPassword.update((v) => !v);
   }
 
-  submit() {
+  async submit() {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
     this.loading.set(true);
-    this.error.set(false);
+    this.error.set(null);
+    this.notice.set(null);
 
-    const { email, password } = this.form.value;
-    this.authService.login(email!, password!).subscribe({
-      next: users => {
-        this.loading.set(false);
-        if (users.length > 0) {
-          this.router.navigate(['/board']);
-        } else {
-          this.error.set(true);
-        }
-      },
-      error: () => {
-        this.loading.set(false);
-        this.error.set(true);
-      },
-    });
+    const { email, password } = this.form.getRawValue();
+    const { error } = await this.authService.signInWithPassword(email!, password!);
+    this.loading.set(false);
+
+    if (error) {
+      this.error.set('login.error');
+      return;
+    }
+    this.router.navigate(['/board']);
+  }
+
+  async sendMagicLink() {
+    if (!this.requireEmail()) return;
+    this.loading.set(true);
+    this.error.set(null);
+    this.notice.set(null);
+    const { error } = await this.authService.signInWithMagicLink(this.form.controls.email.value!);
+    this.loading.set(false);
+    if (error) this.error.set('auth.error.generic');
+    else this.notice.set('auth.magicLink.sent');
+  }
+
+  async forgotPassword() {
+    if (!this.requireEmail()) return;
+    this.loading.set(true);
+    this.error.set(null);
+    this.notice.set(null);
+    const { error } = await this.authService.sendPasswordReset(this.form.controls.email.value!);
+    this.loading.set(false);
+    if (error) this.error.set('auth.error.generic');
+    else this.notice.set('auth.reset.sent');
+  }
+
+  signInWithGoogle() {
+    void this.authService.signInWithGoogle();
+  }
+
+  private requireEmail(): boolean {
+    const email = this.form.controls.email;
+    if (email.invalid) {
+      email.markAsTouched();
+      return false;
+    }
+    return true;
   }
 }

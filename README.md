@@ -1,13 +1,13 @@
 # Stack — Task Management Dashboard
 
 **Live demo:** https://infraedge-task-dashboard.vercel.app
-(Frontend on Vercel · API on Render.com · login with `alice@example.com` / `alice123`)
+(Frontend on Vercel · data + auth on Supabase · login with `alice@example.com` / `alice123`)
 
 ---
 
-A Kanban-style task manager built in Angular 21. Three columns (Todo / In Progress / Done), drag-and-drop between them, priority filtering, search, and inline editing. The UI is fully in Hebrew with right-to-left layout throughout.
+A Kanban-style task manager built in Angular 21. Three columns (Todo / In Progress / Done), drag-and-drop between them, priority filtering, search, and inline editing. The UI defaults to Hebrew / RTL with an English / LTR runtime toggle.
 
-The backend is [json-server](https://github.com/typicode/json-server), so there is no real API — `db.json` acts as the database. This makes the project self-contained and easy to run locally.
+The backend is [Supabase](https://supabase.com) — hosted Postgres plus Auth. The Angular app talks to it directly through `@supabase/supabase-js`; there is no custom API server. Postgres Row-Level Security scopes every task to its owner, and authentication supports email + password, magic link, and Google. Schema and seed data are checked in under `supabase/`.
 
 ---
 
@@ -16,25 +16,25 @@ The backend is [json-server](https://github.com/typicode/json-server), so there 
 ```bash
 npm install
 
-# Terminal 1 — API on :3000
-npm run server
-
-# Terminal 2 — Angular dev server on :4200
+# Angular dev server on :4200 — that's the whole loop, the backend is hosted
 npm start
 ```
 
-Or run both at once:
+First-time backend setup (once per Supabase project):
 
-```bash
-npm run dev
-```
+1. Create a project at [supabase.com](https://supabase.com). Copy the **Project URL** and **publishable/anon key** (Project Settings → API) into `src/environments/environment.ts`.
+2. In the SQL editor, run `supabase/migrations/0001_init.sql`, then `supabase/seed.sql`.
+3. Auth → Providers → enable **Google** (create a Google Cloud OAuth client; redirect URI `https://<ref>.supabase.co/auth/v1/callback`).
+4. Auth → URL Configuration → add `http://localhost:4200` and your Vercel domain to the redirect allow-list.
 
-Login with one of the seeded accounts from `db.json`:
+`seed.sql` imports two accounts you can sign in with immediately:
 
 | Email | Password |
 |---|---|
 | alice@example.com | alice123 |
 | bob@example.com | bob123 |
+
+You can also register a fresh account, use a magic link, or sign in with Google.
 
 ---
 
@@ -58,16 +58,18 @@ npm run e2e:ui
 ```
 src/app/
 ├── models/
-│   └── task.model.ts          — User, Task interfaces + Priority/Status union types
+│   └── task.model.ts          — AppUser, Task, NewTask, TaskPatch + Priority/Status types
 ├── services/
-│   ├── auth.service.ts        — session management, localStorage persistence
-│   └── task.service.ts        — CRUD operations, in-memory state via BehaviorSubject
+│   ├── supabase.service.ts    — owns the single SupabaseClient
+│   ├── auth.service.ts        — wraps supabase.auth (password / magic link / Google)
+│   └── task.service.ts        — Supabase CRUD, in-memory state via BehaviorSubject
 ├── guards/
-│   └── auth.guard.ts          — redirects unauthenticated users to /login
-├── interceptors/
-│   └── auth.interceptor.ts    — attaches Bearer token to every outgoing request
+│   └── auth.guard.ts          — async; waits for the session, else redirects to /login
 ├── pages/
-│   ├── login/                 — two-panel login page (branding + form)
+│   ├── login/                 — two-panel login (password + magic link + Google)
+│   ├── register/              — sign-up
+│   ├── auth-callback/         — OAuth / magic-link redirect landing
+│   ├── reset-password/        — set a new password from a recovery link
 │   └── board/                 — main Kanban board
 └── components/
     ├── header/                — app bar with logo, task count, avatar, logout
@@ -83,39 +85,31 @@ e2e/
 └── drag-drop.spec.ts
 ```
 
+> **Note:** the Playwright e2e suite still targets the old json-server API and has
+> not been ported to Supabase yet. Unit tests (`npm test`) are current.
+
 ---
 
 ## Deploying to production
 
-The app has two parts that deploy separately: the Angular frontend goes to **Vercel** and the json-server API goes to **Render.com**.
+Only the Angular frontend deploys — Supabase is already hosted.
 
-### 1 — Deploy the API to Render.com
-
-1. Go to [render.com](https://render.com) → New → Blueprint
-2. Connect your GitHub repo — Render picks up `render.yaml` automatically and creates a **Web Service** called `infraedge-api`
-3. Once it deploys, copy the service URL (e.g. `https://infraedge-api.onrender.com`)
-4. Open `src/environments/environment.prod.ts` and replace the placeholder with your real URL:
-   ```typescript
-   apiUrl: 'https://infraedge-api.onrender.com',
-   ```
-5. Commit and push
-
-> **Note:** Render's free tier spins down after 15 minutes of inactivity. The first request after a cold start can take ~30 seconds. Data written to `db.json` is ephemeral and resets on every redeploy.
-
-### 2 — Deploy the frontend to Vercel
-
-1. Go to [vercel.com](https://vercel.com) → Add New Project → Import your GitHub repo
+1. Go to [vercel.com](https://vercel.com) → Add New Project → import your GitHub repo
 2. Vercel reads `vercel.json` automatically — no settings to change
-3. Click **Deploy**
+3. Set the Supabase URL + anon key (Vercel → Project → Settings → Environment Variables, or inline in `environment.prod.ts`)
+4. Add the Vercel domain to Supabase → Auth → URL Configuration → redirect allow-list
+5. Click **Deploy**
 
-Every push to `main` redeploys both services automatically.
+Every push to `main` redeploys automatically.
 
 ### Environment files
 
 | File | Used when |
 |---|---|
-| `src/environments/environment.ts` | `npm start` (dev, points to localhost:3000) |
-| `src/environments/environment.prod.ts` | `ng build` (production, points to Render URL) |
+| `src/environments/environment.ts` | `npm start` (dev) |
+| `src/environments/environment.prod.ts` | `ng build` (production) |
+
+Both hold `supabaseUrl` + `supabaseAnonKey`. The anon key is a public client key; Row-Level Security is what protects the data.
 
 ---
 
@@ -147,15 +141,17 @@ Angular's signal graph is synchronous and glitch-free, so the columns always upd
 
 ### Services use BehaviorSubject, not a state management library
 
-`TaskService` holds a `BehaviorSubject<Task[]>` for the task list plus two more for `loading` and `error` state. After every write operation (POST / PATCH / DELETE), the service updates the subject locally using the server's confirmed response — no refetch needed.
+`TaskService` holds a `BehaviorSubject<Task[]>` for the task list plus two more for `loading` and `error` state. After every write (`insert` / `update` / `delete`), the service updates the subject locally using Supabase's confirmed row — no refetch needed.
 
 NgRx or similar would be overkill here. The state is small, there is only one data source, and there are no cross-feature interactions. Adding a store would mean writing actions, reducers, selectors, and effects for operations that are currently a handful of `tap()` calls.
 
-### Functional guard and interceptor
+### Functional guard
 
-`authGuard` is a `CanActivateFn` and `authInterceptor` is an `HttpInterceptorFn`. Both are plain functions that use `inject()` internally. The alternative — class-based guards implementing `CanActivate` — requires the same logic wrapped in a class with a constructor just to satisfy an interface. The functional form is shorter and easier to test.
+`authGuard` is a `CanActivateFn` — a plain function using `inject()` internally, no class or constructor to satisfy an interface. It's `async`: it `await`s `AuthService.whenReady()` (the first `supabase.auth.getSession()`) before deciding, so a hard refresh doesn't evaluate the guard while the session is still being restored. An `APP_INITIALIZER` awaits the same promise so the very first navigation is already settled.
 
 The guard returns a `UrlTree` rather than calling `router.navigate()`. This lets the router cancel the current navigation atomically; calling `navigate()` from inside a guard races against the in-flight navigation and can briefly flash the guarded page before the redirect lands.
+
+No HTTP interceptor: the Supabase client attaches its own `Authorization` header and refreshes the token on its own.
 
 ### One TaskDialog component for both create and edit
 

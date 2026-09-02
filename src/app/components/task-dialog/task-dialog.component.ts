@@ -11,7 +11,6 @@ import {
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Task, Status } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
-import { AuthService } from '../../services/auth.service';
 import { I18nService } from '../../services/i18n.service';
 
 @Component({
@@ -31,7 +30,6 @@ export class TaskDialogComponent implements OnInit {
 
   private fb = inject(FormBuilder);
   private taskService = inject(TaskService);
-  private authService = inject(AuthService);
   protected i18n = inject(I18nService);
 
   isSubmitting = signal(false);
@@ -43,7 +41,9 @@ export class TaskDialogComponent implements OnInit {
     priority: ['medium' as Task['priority']],
   });
 
-  get isEdit() { return this.mode === 'edit'; }
+  get isEdit() {
+    return this.mode === 'edit';
+  }
 
   ngOnInit() {
     if (this.isEdit && this.task) {
@@ -77,12 +77,13 @@ export class TaskDialogComponent implements OnInit {
 
     this.isSubmitting.set(true);
 
-    const request$ = this.isEdit && this.task
-      ? this.taskService.updateTask(this.task.id, patch)
-      : this.taskService.createTask({ ...patch, userId: this.authService.getCurrentUser()!.id });
+    const request$ =
+      this.isEdit && this.task
+        ? this.taskService.updateTask(this.task.id, patch)
+        : this.taskService.createTask(patch);
 
     request$.subscribe({
-      next: saved => {
+      next: (saved) => {
         this.isSubmitting.set(false);
         this.taskSaved.emit(saved);
         this.closed.emit();
