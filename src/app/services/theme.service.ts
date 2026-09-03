@@ -9,9 +9,8 @@ export class ThemeService {
   isDark = signal(false);
 
   constructor() {
-    const saved = localStorage.getItem(this.KEY);
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    this.apply(saved ? saved === 'dark' : prefersDark);
+    const saved = this.read();
+    this.apply(saved ? saved === 'dark' : this.prefersDark());
   }
 
   toggle(): void {
@@ -21,6 +20,33 @@ export class ThemeService {
   private apply(dark: boolean): void {
     this.isDark.set(dark);
     this.doc.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-    localStorage.setItem(this.KEY, dark ? 'dark' : 'light');
+    this.write(dark);
+  }
+
+  // localStorage / matchMedia can be absent or throw (private-mode Safari,
+  // blocked cookies, SSR, some test environments) — never let persistence or
+  // the OS preference probe break construction or theme switching.
+  private read(): string | null {
+    try {
+      return localStorage.getItem(this.KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  private write(dark: boolean): void {
+    try {
+      localStorage.setItem(this.KEY, dark ? 'dark' : 'light');
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private prefersDark(): boolean {
+    try {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } catch {
+      return false;
+    }
   }
 }

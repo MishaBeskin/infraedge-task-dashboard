@@ -44,12 +44,18 @@
       </div>
 
       <div class="field">
-        <label>{{ i18n.t('dialog.field.priority') }}</label>
-        <div class="priority-toggle">
+        <label id="priority-label">{{ i18n.t('dialog.field.priority') }}</label>
+        <div
+          class="priority-toggle"
+          role="group"
+          aria-labelledby="priority-label"
+          [attr.aria-label]="i18n.t('dialog.field.priority')"
+        >
           <button
             type="button"
             class="priority-btn"
             [class.selected]="form.value.priority === 'high'"
+            [attr.aria-pressed]="form.controls.priority.value === 'high'"
             (click)="setPriority('high')"
           >
             {{ i18n.t('priority.high') }}
@@ -58,6 +64,7 @@
             type="button"
             class="priority-btn"
             [class.selected]="form.value.priority === 'medium'"
+            [attr.aria-pressed]="form.controls.priority.value === 'medium'"
             (click)="setPriority('medium')"
           >
             {{ i18n.t('priority.medium') }}
@@ -66,6 +73,7 @@
             type="button"
             class="priority-btn"
             [class.selected]="form.value.priority === 'low'"
+            [attr.aria-pressed]="form.controls.priority.value === 'low'"
             (click)="setPriority('low')"
           >
             {{ i18n.t('priority.low') }}

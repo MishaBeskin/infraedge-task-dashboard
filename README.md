@@ -96,7 +96,7 @@ Only the Angular frontend deploys — Supabase is already hosted.
 
 1. Go to [vercel.com](https://vercel.com) → Add New Project → import your GitHub repo
 2. Vercel reads `vercel.json` automatically — no settings to change
-3. Set the Supabase URL + anon key (Vercel → Project → Settings → Environment Variables, or inline in `environment.prod.ts`)
+3. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` (Vercel → Project → Settings → Environment Variables). When **both** are present the build regenerates `environment.prod.ts` from them; otherwise the committed file is used as-is.
 4. Add the Vercel domain to Supabase → Auth → URL Configuration → redirect allow-list
 5. Click **Deploy**
 
@@ -107,9 +107,11 @@ Every push to `main` redeploys automatically.
 | File | Used when |
 |---|---|
 | `src/environments/environment.ts` | `npm start` (dev) |
-| `src/environments/environment.prod.ts` | `ng build` (production) |
+| `src/environments/environment.prod.ts` | `ng build` (production, via `fileReplacements`) |
 
-Both hold `supabaseUrl` + `supabaseAnonKey`. The anon key is a public client key; Row-Level Security is what protects the data.
+Both hold `supabaseUrl` + `supabaseAnonKey`. The anon key is a public client key; Row-Level Security is what protects the data, so `environment.prod.ts` stays committed as a working fallback.
+
+**Per-deploy override:** `npm run build` (and the Vercel `buildCommand`) run `scripts/generate-env.mjs` first. If the environment variables `SUPABASE_URL` and `SUPABASE_ANON_KEY` are both set, the script rewrites `src/environments/environment.prod.ts` from them before `ng build`; if either is missing it leaves the file untouched. A bare `ng build` (or `npx ng build`) does **not** run the script and always uses the committed file.
 
 ---
 

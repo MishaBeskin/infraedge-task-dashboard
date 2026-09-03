@@ -4,10 +4,15 @@ import {
   Output,
   EventEmitter,
   OnInit,
+  AfterViewInit,
+  OnDestroy,
+  ElementRef,
+  HostListener,
   inject,
   signal,
   ChangeDetectionStrategy,
 } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Task, Status } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
@@ -21,7 +26,7 @@ import { I18nService } from '../../services/i18n.service';
   styleUrl: './task-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TaskDialogComponent implements OnInit {
+export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
   @Input({ required: true }) mode!: 'create' | 'edit';
   @Input() defaultStatus: Status = 'todo';
   @Input() task?: Task;
@@ -30,7 +35,12 @@ export class TaskDialogComponent implements OnInit {
 
   private fb = inject(FormBuilder);
   private taskService = inject(TaskService);
+  private host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private doc = inject(DOCUMENT);
   protected i18n = inject(I18nService);
+
+  /** Element focused before the dialog opened, restored on close. */
+  private previouslyFocused: HTMLElement | null = null;
 
   isSubmitting = signal(false);
   /** Translation key for a save failure, or null. Set instead of silently
@@ -50,6 +60,8 @@ export class TaskDialogComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.previouslyFocused = this.doc.activeElement as HTMLElement | null;
+
     if (this.isEdit && this.task) {
       this.form.patchValue({
         title: this.task.title,
@@ -60,6 +72,57 @@ export class TaskDialogComponent implements OnInit {
     } else {
       this.form.patchValue({ status: this.defaultStatus });
     }
+  }
+
+  ngAfterViewInit() {
+    // Move focus into the dialog so keyboard/screen-reader users start inside it.
+    this.host.nativeElement.querySelector<HTMLInputElement>('#task-title')?.focus();
+  }
+
+  ngOnDestroy() {
+    // Return focus to whatever opened the dialog.
+    this.previouslyFocused?.focus?.();
+  }
+
+  /** Escape closes; Tab / Shift+Tab stay trapped inside .modal. */
+  @HostListener('keydown', ['$event'])
+  onKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.closed.emit();
+      return;
+    }
+    if (event.key === 'Tab') {
+      this.trapTab(event);
+    }
+  }
+
+  private trapTab(event: KeyboardEvent) {
+    const focusable = this.focusableElements();
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = this.doc.activeElement;
+
+    if (!this.host.nativeElement.contains(active)) {
+      event.preventDefault();
+      first.focus();
+    } else if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  private focusableElements(): HTMLElement[] {
+    const modal = this.host.nativeElement.querySelector('.modal');
+    if (!modal) return [];
+    const selector =
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    return Array.from(modal.querySelectorAll<HTMLElement>(selector));
   }
 
   setPriority(priority: Task['priority']) {

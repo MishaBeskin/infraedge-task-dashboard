@@ -19,9 +19,16 @@ class FakeTaskService {
   });
 }
 
-function mountCreate() {
+const attached: HTMLElement[] = [];
+
+/** `attach` puts the host in the document so focus assertions are meaningful. */
+function mountCreate(attach = false) {
   const fixture = TestBed.createComponent(TaskDialogComponent);
   fixture.componentRef.setInput('mode', 'create');
+  if (attach) {
+    document.body.appendChild(fixture.nativeElement);
+    attached.push(fixture.nativeElement);
+  }
   fixture.detectChanges();
   fixture.componentInstance.form.setValue({
     title: 'A title',
@@ -40,6 +47,10 @@ describe('TaskDialogComponent', () => {
     TestBed.configureTestingModule({
       providers: [{ provide: TaskService, useValue: svc }],
     });
+  });
+
+  afterEach(() => {
+    while (attached.length) attached.pop()!.remove();
   });
 
   it('sets the error key and keeps the dialog open when the save fails', () => {
@@ -81,5 +92,37 @@ describe('TaskDialogComponent', () => {
     expect(comp.error()).toBeNull();
     expect(comp.isSubmitting()).toBe(false);
     expect(closed).toBe(true);
+  });
+
+  it('moves focus to the title input when it opens', () => {
+    const fixture = mountCreate(true);
+    const title = fixture.nativeElement.querySelector('#task-title');
+    expect(document.activeElement).toBe(title);
+  });
+
+  it('emits closed when Escape is pressed', () => {
+    const fixture = mountCreate(true);
+    let closed = false;
+    fixture.componentInstance.closed.subscribe(() => (closed = true));
+
+    fixture.nativeElement.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+
+    expect(closed).toBe(true);
+  });
+
+  it('exposes aria-pressed on the priority buttons for the selected priority', () => {
+    const fixture = mountCreate();
+    fixture.componentInstance.form.controls.priority.setValue('high');
+    fixture.detectChanges();
+
+    const group = fixture.nativeElement.querySelector('.priority-toggle');
+    expect(group.getAttribute('role')).toBe('group');
+
+    const pressed = Array.from(
+      group.querySelectorAll('.priority-btn') as NodeListOf<HTMLElement>,
+    ).map((b) => b.getAttribute('aria-pressed'));
+    expect(pressed).toEqual(['true', 'false', 'false']);
   });
 });

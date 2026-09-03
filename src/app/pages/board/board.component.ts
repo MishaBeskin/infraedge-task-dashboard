@@ -5,6 +5,7 @@ import {
   computed,
   OnInit,
   ChangeDetectionStrategy,
+  Signal,
 } from '@angular/core';
 import { AsyncPipe } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -59,6 +60,21 @@ export class BoardComponent implements OnInit {
   inProgressTasks = computed(() => this.filtered().filter((t) => t.status === 'in-progress'));
   doneTasks = computed(() => this.filtered().filter((t) => t.status === 'done'));
   filteredCount = computed(() => this.filtered().length);
+
+  // Hoisted so the template @for doesn't reallocate the array on every CD pass.
+  protected readonly skeletonCols = [1, 2, 3] as const;
+
+  // One source of truth for the three columns instead of three near-identical
+  // <app-kanban-column> blocks. Each `tasks` is the existing computed signal.
+  protected readonly columns: ReadonlyArray<{
+    status: Status;
+    titleKey: string;
+    tasks: Signal<Task[]>;
+  }> = [
+    { status: 'todo', titleKey: 'status.todo', tasks: this.todoTasks },
+    { status: 'in-progress', titleKey: 'status.in-progress', tasks: this.inProgressTasks },
+    { status: 'done', titleKey: 'status.done', tasks: this.doneTasks },
+  ];
 
   ngOnInit() {
     this.taskService.loadTasks().subscribe();

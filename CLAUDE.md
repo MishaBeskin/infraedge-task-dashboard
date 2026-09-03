@@ -289,3 +289,8 @@ No local server — the app points straight at the hosted Supabase project.
 ```bash
 npm start   # ng serve on :4200 — that's the whole dev loop now
 ```
+
+`npm run build` (and the Vercel `buildCommand`) run `scripts/generate-env.mjs`
+first: if env vars `SUPABASE_URL` and `SUPABASE_ANON_KEY` are both set it
+rewrites `src/environments/environment.prod.ts` from them, otherwise the
+committed file is used. A bare `ng build` skips the script.
