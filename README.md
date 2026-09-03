@@ -5,7 +5,7 @@
 
 ---
 
-A Kanban-style task manager built in Angular 21. Three columns (Todo / In Progress / Done), drag-and-drop between them, priority filtering, search, and inline editing. The UI defaults to Hebrew / RTL with an English / LTR runtime toggle.
+A Kanban-style task manager built in Angular 21. Three columns (Todo / In Progress / Done), drag-and-drop between and within columns (card order persists), priority filtering, search, and inline editing. The UI defaults to Hebrew / RTL with an English / LTR runtime toggle.
 
 The backend is [Supabase](https://supabase.com) — hosted Postgres plus Auth. The Angular app talks to it directly through `@supabase/supabase-js`; there is no custom API server. Postgres Row-Level Security scopes every task to its owner, and authentication supports email + password, magic link, and Google. Schema and seed data are checked in under `supabase/`.
 
@@ -29,10 +29,10 @@ First-time backend setup (once per Supabase project):
 
 `seed.sql` imports two accounts you can sign in with immediately:
 
-| Email | Password |
-|---|---|
+| Email             | Password |
+| ----------------- | -------- |
 | alice@example.com | alice123 |
-| bob@example.com | bob123 |
+| bob@example.com   | bob123   |
 
 You can also register a fresh account, use a magic link, or sign in with Google.
 
@@ -104,9 +104,9 @@ Every push to `main` redeploys automatically.
 
 ### Environment files
 
-| File | Used when |
-|---|---|
-| `src/environments/environment.ts` | `npm start` (dev) |
+| File                                   | Used when                                       |
+| -------------------------------------- | ----------------------------------------------- |
+| `src/environments/environment.ts`      | `npm start` (dev)                               |
 | `src/environments/environment.prod.ts` | `ng build` (production, via `fileReplacements`) |
 
 Both hold `supabaseUrl` + `supabaseAnonKey`. The anon key is a public client key; Row-Level Security is what protects the data, so `environment.prod.ts` stays committed as a working fallback.
@@ -167,9 +167,15 @@ The alternative was two separate dialog components. They started identical and w
 
 ### HTML5 drag-and-drop (no library)
 
-The drag-and-drop uses the browser's native `dragstart` / `dragover` / `drop` events. The task ID is passed via `dataTransfer` and the drop emits `{ taskId, newStatus }` up to the board, which calls `updateTask()`.
+The drag-and-drop uses the browser's native `dragstart` / `dragover` / `drop` events — no `@angular/cdk`, no DnD library. The task ID is passed via `dataTransfer`.
 
-The only non-obvious part is `dragCounter` in `KanbanColumnComponent`. The browser fires `dragleave` on a parent element whenever the pointer enters one of its children, which causes the drop-zone highlight to flicker. The counter tracks how many nested enter/leave events are in flight and only clears the highlight when it reaches zero.
+**Drop at a position.** Each card is wrapped in a drop target. While a card is dragged over another card, the pointer's vertical position within that card decides insert-before (top half) vs insert-after (bottom half); `KanbanColumnComponent` tracks a `dropIndex` signal and renders a thin `.drop-line` indicator there. Dropping on the column background appends to the end. The drop emits `{ taskId, newStatus, targetIndex }` up to the board, where `targetIndex` is the slot in that column's currently rendered (filtered) card list.
+
+`BoardComponent.onTaskDropped` builds the target column's full ordered id list from the **unfiltered** task set, translates `targetIndex` from the filtered list into that list (landing the card just before whichever unfiltered task the filtered slot points at; if a filter/search makes the mapping ambiguous it appends within the status), inserts the dragged id, and calls `TaskService.reorderColumn(status, orderedIds)`. A drop that produces the exact same order issues no network call.
+
+`TaskService.reorderColumn` assigns `position` = 1..N over `orderedIds`, flips `status` on any card that changed column, updates `tasksSubject` optimistically, then PATCHes **only the rows whose `position` or `status` actually changed** (in parallel). Any failure reverts the list to the pre-move snapshot and errors the observable. A rapid second reorder of the same column supersedes the pending one (key `reorder:<status>`).
+
+The only other non-obvious part is `dragCounter` in `KanbanColumnComponent`. The browser fires `dragleave` on a parent element whenever the pointer enters one of its children, which causes the drop-zone highlight to flicker. The counter tracks how many nested enter/leave events are in flight and only clears the highlight (and `dropIndex`) when it reaches zero.
 
 ---
 
@@ -183,7 +189,7 @@ Coverage lives in two spec files:
 
 **`auth.service.spec.ts`** (12 tests) — construction, localStorage session restore, login success and failure, correct API URL, `currentUser$` emissions, logout, `getToken`.
 
-**`task.service.spec.ts`** (20 tests) — initial state, `loadTasksForUser` (URL shape, loading flags, population, error handling, error clearing on retry), `createTask` (POST, append, preserve existing tasks), `updateTask` (PATCH, in-place replacement, no side effects on other tasks), `deleteTask` (DELETE, removal, no side effects).
+**`task.service.spec.ts`** — initial state, `loadTasks` (loading flags, population, error handling, error clearing on retry), `createTask` (insert, append, position `max+1`), `updateTask` (optimistic patch, in-place replacement, supersede cancellation, revert on failure), `deleteTask` (optimistic removal, revert on failure), `reorderColumn` (sequential positions 1..N, PATCHes only changed rows, no-op when order is unchanged, status flip on cross-column entry, full revert on failure).
 
 Both use `provideHttpClient()` + `provideHttpClientTesting()` — the Angular 18+ replacement for the deprecated `HttpClientTestingModule`. HappyDOM's localStorage is incomplete, so the auth tests stub it with `vi.stubGlobal` using a plain object.
 

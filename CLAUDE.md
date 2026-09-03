@@ -44,7 +44,7 @@ Global body: direction rtl, font system-ui, background var(--bg).
 
 File: src/app/models/task.model.ts
 
-interface AppUser { id: string, name, email }   // derived from the Supabase session; no password/token client-side
+interface AppUser { id: string, name, email } // derived from the Supabase session; no password/token client-side
 interface Task { id: string, title, status: 'todo'|'in-progress'|'done', priority: 'high'|'medium'|'low', description?, position, createdAt, updatedAt }
 type NewTask = Pick<Task,'title'|'status'|'priority'> & { description? }
 type TaskPatch = Partial<Pick<Task,'title'|'description'|'status'|'priority'|'position'>>
@@ -149,6 +149,7 @@ new-task-dialog.component.scss
 - createTask(NewTask): insert (position = max+1), appends to tasks$
 - updateTask(id, TaskPatch): optimistic update + cancels any in-flight PATCH for the same id, then update().eq('id',id)
 - deleteTask(id): delete().eq('id',id), removes from tasks$
+- reorderColumn(status, orderedIds): persists within-column order. Assigns position = 1..N over orderedIds and flips status on any card that changed column. Optimistic tasks$ update, then PATCHes in parallel ONLY the rows whose position/status actually changed; reverts tasks$ to the pre-move snapshot and errors on any failure. Returns Observable<void>. Supersede key `reorder:<status>`. No network call when the order is unchanged.
 
 ## LoginComponent
 
@@ -182,19 +183,26 @@ RTL horizontal bar, white background, 64px height.
 
 - Right side: orange avatar circle with user initials, orange "משימה חדשה +" button
 - Center: "[N] משימות" in muted color
-- Left side: "● stack" logo, logout arrow button that calls AuthService.logout() then navigates to /login
+- Left side: "● stack" logo, logout arrow button that calls AuthService.signOut() then navigates to /login
 
 ## KanbanColumnComponent
 
 Inputs: title: string, tasks: Task[], status: Status
-Outputs: addTask: EventEmitter<Status>
+Outputs: addTask: EventEmitter<Status>, editTask: EventEmitter<Task>,
+taskDropped: EventEmitter<{ taskId: string; newStatus: Status; targetIndex: number }>
 
 White card column, rounded corners, max-height with overflow-y scroll.
 
 - Header: column title right-aligned, count badge circle, + button left-aligned
-- List of TaskCardComponent
+- List of TaskCardComponent, each wrapped in a drop target
 - Empty state: dashed border placeholder "אין משימות"
 - - button emits addTask with the column's status
+- Native HTML5 DnD (no library). dragCounter keeps the column highlight stable
+  across child enter/leave. dropIndex signal + a `.drop-line` indicator show where
+  a card will land; pointer Y within the hovered card picks insert-before vs
+  insert-after; dropping on the background appends. onDrop emits taskDropped with
+  targetIndex = the slot in this column's rendered (filtered) list, 0..list.length.
+  Same-column reordering is supported and persisted via TaskService.reorderColumn.
 
 ## TaskCardComponent
 

@@ -24,6 +24,8 @@ class FakeTable {
   private seq = 100;
   /** When true, the next query resolves with an error and clears the flag. */
   failNext = false;
+  /** Every UPDATE that reached the fake, in call order. */
+  updates: Array<{ id: unknown; payload: Record<string, unknown> }> = [];
 
   nextId(): string {
     return String(++this.seq);
@@ -112,6 +114,11 @@ class FakeQuery {
         return { data: this.wantSingle ? row : [row], error: null };
       }
       case 'update': {
+        const idFilter = this.filters.find(([c]) => c === 'id')?.[1];
+        this.table.updates.push({
+          id: idFilter,
+          payload: (this.payload ?? {}) as Record<string, unknown>,
+        });
         let updated: Row | null = null;
         this.table.rows = this.table.rows.map((r) => {
           if (this.match(r)) {
@@ -355,5 +362,85 @@ describe('TaskService', () => {
     expect(errored).toBe(true);
     const tasks = await firstValueFrom(service.tasks$);
     expect(tasks.map((t) => t.id)).toEqual(['1', '2']);
+  });
+
+  // ── reorderColumn() ────────────────────────────────────────────
+
+  it('assigns sequential positions 1..N optimistically and PATCHes only moved rows', async () => {
+    table.seed([
+      mkTask({ id: '1', status: 'todo', position: 1 }),
+      mkTask({ id: '2', status: 'todo', position: 2 }),
+      mkTask({ id: '3', status: 'todo', position: 3 }),
+    ]);
+    await firstValueFrom(service.loadTasks());
+
+    // Swap the last two: new order [1, 3, 2] -> positions 1, 2, 3.
+    service.reorderColumn('todo', ['1', '3', '2']); // not awaited
+
+    const optimistic = await firstValueFrom(service.tasks$);
+    const pos = Object.fromEntries(optimistic.map((t) => [t.id, t.position]));
+    expect(pos).toEqual({ '1': 1, '3': 2, '2': 3 });
+
+    await new Promise((r) => setTimeout(r));
+
+    // id 1 kept position 1 -> not rewritten. Only 2 and 3 changed.
+    expect(table.updates.map((u) => u.id).sort()).toEqual(['2', '3']);
+    expect(table.updates.every((u) => !('status' in u.payload))).toBe(true);
+  });
+
+  it('issues no request when the requested order matches the current one', async () => {
+    table.seed([
+      mkTask({ id: '1', status: 'todo', position: 1 }),
+      mkTask({ id: '2', status: 'todo', position: 2 }),
+    ]);
+    await firstValueFrom(service.loadTasks());
+
+    await firstValueFrom(service.reorderColumn('todo', ['1', '2']));
+
+    expect(table.updates).toHaveLength(0);
+  });
+
+  it('flips status for a card that entered the column from elsewhere', async () => {
+    table.seed([
+      mkTask({ id: '1', status: 'done', position: 1 }),
+      mkTask({ id: '2', status: 'todo', position: 5 }), // dragged in from "todo"
+    ]);
+    await firstValueFrom(service.loadTasks());
+
+    await firstValueFrom(service.reorderColumn('done', ['1', '2']));
+
+    const tasks = await firstValueFrom(service.tasks$);
+    expect(tasks.find((t) => t.id === '2')).toMatchObject({ status: 'done', position: 2 });
+
+    const moved = table.updates.find((u) => u.id === '2');
+    expect(moved?.payload).toMatchObject({ status: 'done', position: 2 });
+  });
+
+  it('reverts every row to the pre-move snapshot if a PATCH fails', async () => {
+    table.seed([
+      mkTask({ id: '1', status: 'todo', position: 1 }),
+      mkTask({ id: '2', status: 'todo', position: 2 }),
+      mkTask({ id: '3', status: 'todo', position: 3 }),
+    ]);
+    await firstValueFrom(service.loadTasks());
+
+    table.failNext = true;
+    let errored = false;
+    await new Promise<void>((resolve) => {
+      service.reorderColumn('todo', ['3', '2', '1']).subscribe({
+        error: () => {
+          errored = true;
+          resolve();
+        },
+      });
+    });
+
+    expect(errored).toBe(true);
+    const tasks = await firstValueFrom(service.tasks$);
+    expect(tasks.map((t) => [t.id, t.position])).toEqual([
+      ['1', 1],
+      ['2', 2],
+      ['3', 3],
+    ]);
   });
 });

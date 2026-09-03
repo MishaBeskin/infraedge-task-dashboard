@@ -13,7 +13,10 @@ import { Task, Status } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
 import { I18nService } from '../../services/i18n.service';
 import { HeaderComponent } from '../../components/header/header.component';
-import { KanbanColumnComponent } from '../../components/kanban-column/kanban-column.component';
+import {
+  KanbanColumnComponent,
+  TaskDropEvent,
+} from '../../components/kanban-column/kanban-column.component';
 import { TaskDialogComponent } from '../../components/task-dialog/task-dialog.component';
 
 @Component({
@@ -112,19 +115,41 @@ export class BoardComponent implements OnInit {
     this.editingTask = null;
   }
 
-  onTaskDropped({ taskId, newStatus }: { taskId: string; newStatus: Status }) {
-    const task = this.allTasks().find((t) => t.id === taskId);
-    if (task && task.status !== newStatus) {
-      // Drop the card at the bottom of the target column.
-      const columnMax = Math.max(
-        0,
-        ...this.allTasks()
-          .filter((t) => t.status === newStatus)
-          .map((t) => t.position),
-      );
-      this.taskService
-        .updateTask(task.id, { status: newStatus, position: columnMax + 1 })
-        .subscribe();
+  onTaskDropped({ taskId, newStatus, targetIndex }: TaskDropEvent) {
+    const all = this.allTasks();
+    const task = all.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const byPosition = (a: Task, b: Task) => a.position - b.position;
+
+    // The target column's FULL ordered id list, from the unfiltered set.
+    const unfilteredColumn = all.filter((t) => t.status === newStatus).sort(byPosition);
+
+    // `targetIndex` indexes the FILTERED card list the column actually rendered.
+    // Translate it into the unfiltered list: land the card just before whichever
+    // unfiltered task the filtered task at that index corresponds to. When a
+    // filter/search hides cards and the slot maps past the last visible card
+    // (or the mapping is otherwise ambiguous), appending within the status is an
+    // accepted fallback.
+    const filteredColumn = this.filtered()
+      .filter((t) => t.status === newStatus)
+      .sort(byPosition);
+    const clampedIndex = Math.max(0, Math.min(targetIndex, filteredColumn.length));
+    const anchorId = clampedIndex < filteredColumn.length ? filteredColumn[clampedIndex].id : null;
+
+    const orderedIds = unfilteredColumn.map((t) => t.id).filter((id) => id !== taskId);
+    const anchorPos = anchorId ? orderedIds.indexOf(anchorId) : -1;
+    const insertAt = anchorPos >= 0 ? anchorPos : orderedIds.length;
+    orderedIds.splice(insertAt, 0, taskId);
+
+    // Same column and the order is unchanged — nothing to persist.
+    if (task.status === newStatus) {
+      const current = unfilteredColumn.map((t) => t.id);
+      if (current.length === orderedIds.length && current.every((id, i) => id === orderedIds[i])) {
+        return;
+      }
     }
+
+    this.taskService.reorderColumn(newStatus, orderedIds).subscribe({ error: () => undefined });
   }
 }

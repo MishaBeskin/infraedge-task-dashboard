@@ -26,6 +26,7 @@ class FakeTaskService {
   error$ = new BehaviorSubject<string | null>(null);
   loadTasks = vi.fn(() => of(undefined));
   updateTask = vi.fn((_id: string, _patch: unknown) => of({} as Task));
+  reorderColumn = vi.fn((_status: Status, _orderedIds: string[]) => of(undefined));
 }
 
 function setup(tasks: Task[]) {
@@ -90,46 +91,66 @@ describe('BoardComponent', () => {
     );
   });
 
-  it('onTaskDropped is a no-op when the status is unchanged', () => {
-    const { svc, comp } = setup([mk('1', 'x', 'todo', 'high', 1)]);
-
-    comp.onTaskDropped({ taskId: '1', newStatus: 'todo' });
-
-    expect(svc.updateTask).not.toHaveBeenCalled();
-  });
-
-  it('onTaskDropped moves a card to the bottom of a populated column', () => {
+  it('same-column reorder builds the full ordered id list and calls reorderColumn', () => {
     const { svc, comp } = setup([
-      mk('1', 'x', 'todo', 'high', 1),
-      mk('2', 'y', 'done', 'high', 4),
-      mk('3', 'z', 'done', 'high', 5),
+      mk('1', 'a', 'todo', 'high', 1),
+      mk('2', 'b', 'todo', 'high', 2),
+      mk('3', 'c', 'todo', 'high', 3),
     ]);
 
-    comp.onTaskDropped({ taskId: '1', newStatus: 'done' });
+    // Drop card 3 into the top slot of its own column.
+    comp.onTaskDropped({ taskId: '3', newStatus: 'todo', targetIndex: 0 });
 
-    expect(svc.updateTask).toHaveBeenCalledWith('1', { status: 'done', position: 6 });
+    expect(svc.reorderColumn).toHaveBeenCalledWith('todo', ['3', '1', '2']);
   });
 
-  it('onTaskDropped into an empty column sends position 1', () => {
-    const { svc, comp } = setup([mk('1', 'x', 'todo', 'high', 1), mk('2', 'y', 'done', 'high', 9)]);
-
-    comp.onTaskDropped({ taskId: '1', newStatus: 'in-progress' });
-
-    expect(svc.updateTask).toHaveBeenCalledWith('1', { status: 'in-progress', position: 1 });
-  });
-
-  it('computes columnMax from all tasks, not the filtered set', () => {
+  it('cross-column drop inserts the card at the target index with the new status', () => {
     const { svc, comp } = setup([
-      mk('1', 'move me', 'todo', 'high', 1),
-      mk('2', 'hidden big', 'done', 'low', 99), // filtered out by the priority pill
-      mk('3', 'shown', 'done', 'high', 50),
+      mk('a', 'a', 'todo', 'high', 1),
+      mk('x', 'x', 'done', 'high', 1),
+      mk('y', 'y', 'done', 'high', 2),
     ]);
 
-    comp.setPriorityFilter('high'); // the done column now only shows id 3
+    comp.onTaskDropped({ taskId: 'a', newStatus: 'done', targetIndex: 1 });
 
-    comp.onTaskDropped({ taskId: '1', newStatus: 'done' });
+    expect(svc.reorderColumn).toHaveBeenCalledWith('done', ['x', 'a', 'y']);
+  });
 
-    // max position across ALL done tasks is 99 -> 100, not 51
-    expect(svc.updateTask).toHaveBeenCalledWith('1', { status: 'done', position: 100 });
+  it('a drop that leaves the order unchanged issues no reorderColumn call', () => {
+    const { svc, comp } = setup([
+      mk('1', 'a', 'todo', 'high', 1),
+      mk('2', 'b', 'todo', 'high', 2),
+      mk('3', 'c', 'todo', 'high', 3),
+    ]);
+
+    // Dropping card 3 back at the end of its own column.
+    comp.onTaskDropped({ taskId: '3', newStatus: 'todo', targetIndex: 3 });
+
+    expect(svc.reorderColumn).not.toHaveBeenCalled();
+  });
+
+  it('clamps an out-of-range targetIndex to an append within the status', () => {
+    const { svc, comp } = setup([mk('1', 'a', 'todo', 'high', 1), mk('2', 'b', 'todo', 'high', 2)]);
+
+    comp.onTaskDropped({ taskId: '1', newStatus: 'todo', targetIndex: 99 });
+
+    expect(svc.reorderColumn).toHaveBeenCalledWith('todo', ['2', '1']);
+  });
+
+  it('translates a filtered targetIndex to a position in the unfiltered column', () => {
+    const { svc, comp } = setup([
+      mk('a', 'a', 'todo', 'high', 1),
+      mk('x', 'x', 'done', 'high', 1),
+      mk('z', 'z', 'done', 'low', 2), // hidden by the priority pill
+      mk('y', 'y', 'done', 'high', 3),
+    ]);
+
+    comp.setPriorityFilter('high'); // done column now renders [x, y]
+
+    // Drop before the visible card at filtered index 1 (that is 'y'). The hidden
+    // 'z' must stay ahead of 'y' in the persisted order.
+    comp.onTaskDropped({ taskId: 'a', newStatus: 'done', targetIndex: 1 });
+
+    expect(svc.reorderColumn).toHaveBeenCalledWith('done', ['x', 'z', 'a', 'y']);
   });
 });

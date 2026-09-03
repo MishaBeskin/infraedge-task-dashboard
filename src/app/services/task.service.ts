@@ -49,6 +49,9 @@ export class TaskService {
    *  result Subject handed to the caller are cleaned up on supersede so an
    *  awaiting caller (firstValueFrom) never hangs. */
   private pendingUpdates = new Map<string, { sub: Subscription; result: Subject<Task> }>();
+  /** In-flight column reorders keyed by `reorder:<status>`, so a rapid second
+   *  drag of the same column can supersede an earlier, still-pending one. */
+  private pendingReorders = new Map<string, { sub: Subscription; result: Subject<void> }>();
 
   tasks$ = this.tasksSubject.asObservable();
   loading$ = this.loadingSubject.asObservable();
@@ -129,6 +132,68 @@ export class TaskService {
     return result.asObservable();
   }
 
+  /** Persists a new within-column ordering. `orderedIds` is the full, ordered id
+   *  list for `status` (front to back). Any id whose status differs is treated as
+   *  a cross-column move and gets `status` flipped too.
+   *
+   *  Optimistic: `tasksSubject` is rewritten with the new positions/status right
+   *  away, then only the rows that actually changed are PATCHed in parallel. Any
+   *  failure reverts the whole list to the pre-move snapshot and errors the
+   *  returned observable. A rapid second reorder of the same column supersedes an
+   *  in-flight one (key `reorder:<status>`). */
+  reorderColumn(status: Status, orderedIds: string[]): Observable<void> {
+    const snapshot = this.tasksSubject.getValue();
+    const byId = new Map(snapshot.map((t) => [t.id, t]));
+
+    // Rows whose position and/or status differ from the requested order.
+    const changed: { id: string; position: number; status?: Status }[] = [];
+    orderedIds.forEach((id, i) => {
+      const task = byId.get(id);
+      if (!task) return;
+      const position = i + 1;
+      const statusChanged = task.status !== status;
+      if (task.position !== position || statusChanged) {
+        changed.push({ id, position, status: statusChanged ? status : undefined });
+      }
+    });
+
+    // Nothing to do — same column, identical order. No network call.
+    if (changed.length === 0) return of(undefined);
+
+    const patchById = new Map(changed.map((c) => [c.id, c]));
+    this.tasksSubject.next(
+      snapshot.map((t) => {
+        const c = patchById.get(t.id);
+        return c ? { ...t, position: c.position, status: c.status ?? t.status } : t;
+      }),
+    );
+
+    const key = `reorder:${status}`;
+    const stale = this.pendingReorders.get(key);
+    if (stale) {
+      stale.sub.unsubscribe();
+      stale.result.complete();
+      this.pendingReorders.delete(key);
+    }
+
+    const result = new Subject<void>();
+    const sub = from(this.persistReorder(changed)).subscribe({
+      next: () => {
+        if (this.pendingReorders.get(key)?.result === result) this.pendingReorders.delete(key);
+        result.next();
+        result.complete();
+      },
+      error: (err) => {
+        this.tasksSubject.next(snapshot);
+        if (this.pendingReorders.get(key)?.result === result) this.pendingReorders.delete(key);
+        result.error(err);
+      },
+    });
+    this.pendingReorders.set(key, { sub, result });
+
+    return result.asObservable();
+  }
+
   deleteTask(id: string): Observable<void> {
     const previous = this.tasksSubject.getValue();
 
@@ -189,5 +254,20 @@ export class TaskService {
   private async removeTask(id: string): Promise<void> {
     const { error } = await this.supabase.from('tasks').delete().eq('id', id);
     if (error) throw error;
+  }
+
+  /** One targeted UPDATE per changed row, in parallel. Rows left untouched are
+   *  not rewritten. Rejects on the first error so the caller can revert. */
+  private async persistReorder(
+    changed: { id: string; position: number; status?: Status }[],
+  ): Promise<void> {
+    await Promise.all(
+      changed.map(async ({ id, position, status }) => {
+        const patch: Record<string, unknown> = { position };
+        if (status !== undefined) patch['status'] = status;
+        const { error } = await this.supabase.from('tasks').update(patch).eq('id', id);
+        if (error) throw error;
+      }),
+    );
   }
 }
