@@ -58,6 +58,35 @@ describe('BoardComponent', () => {
     expect(comp.doneTasks().map((t) => t.id)).toEqual(['5']);
   });
 
+  it('orders each column by position, not by array order', () => {
+    const { comp } = setup([
+      mk('3', 'c', 'todo', 'medium', 3),
+      mk('1', 'a', 'todo', 'medium', 1),
+      mk('2', 'b', 'todo', 'medium', 2),
+    ]);
+
+    expect(comp.todoTasks().map((t) => t.id)).toEqual(['1', '2', '3']);
+  });
+
+  it('reflects an optimistic reorder (position values change, array order does not)', () => {
+    const tasks = [
+      mk('1', 'a', 'todo', 'medium', 1),
+      mk('2', 'b', 'todo', 'medium', 2),
+      mk('3', 'c', 'todo', 'medium', 3),
+    ];
+    const { comp, svc } = setup(tasks);
+    expect(comp.todoTasks().map((t) => t.id)).toEqual(['1', '2', '3']);
+
+    // Same array order, only positions rewritten — as reorderColumn does.
+    svc.tasks$.next([
+      { ...tasks[0], position: 3 },
+      { ...tasks[1], position: 1 },
+      { ...tasks[2], position: 2 },
+    ]);
+
+    expect(comp.todoTasks().map((t) => t.id)).toEqual(['2', '3', '1']);
+  });
+
   it('partitions the filtered tasks across the three columns without overlap', () => {
     const { comp } = setup([
       mk('1', 'a', 'todo', 'medium', 1),

@@ -59,9 +59,19 @@ export class BoardComponent implements OnInit {
     return tasks;
   });
 
-  todoTasks = computed(() => this.filtered().filter((t) => t.status === 'todo'));
-  inProgressTasks = computed(() => this.filtered().filter((t) => t.status === 'in-progress'));
-  doneTasks = computed(() => this.filtered().filter((t) => t.status === 'done'));
+  // Sort by `position` here (not just on load) so an optimistic reorder — which
+  // rewrites `position` values without reordering the tasks array — is reflected
+  // immediately, and matches the server's `order('position')` after a reload.
+  private column = (status: Status) =>
+    computed(() =>
+      this.filtered()
+        .filter((t) => t.status === status)
+        .sort((a, b) => a.position - b.position),
+    );
+
+  todoTasks = this.column('todo');
+  inProgressTasks = this.column('in-progress');
+  doneTasks = this.column('done');
   filteredCount = computed(() => this.filtered().length);
 
   // Hoisted so the template @for doesn't reallocate the array on every CD pass.
