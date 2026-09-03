@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, Subject, Subscription, from, of } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, from, of, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { Task, NewTask, TaskPatch, Status, Priority } from '../models/task.model';
 import { SupabaseService } from './supabase.service';
@@ -44,7 +44,11 @@ export class TaskService {
   private tasksSubject = new BehaviorSubject<Task[]>([]);
   private loadingSubject = new BehaviorSubject<boolean>(false);
   private errorSubject = new BehaviorSubject<string | null>(null);
-  private pendingUpdates = new Map<string, Subscription>();
+  /** In-flight PATCHes keyed by task id. Kept so a newer update for the same
+   *  task can supersede an older one — both the Supabase subscription and the
+   *  result Subject handed to the caller are cleaned up on supersede so an
+   *  awaiting caller (firstValueFrom) never hangs. */
+  private pendingUpdates = new Map<string, { sub: Subscription; result: Subject<Task> }>();
 
   tasks$ = this.tasksSubject.asObservable();
   loading$ = this.loadingSubject.asObservable();
@@ -89,15 +93,25 @@ export class TaskService {
     this.tasksSubject.next(tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)));
 
     // A newer change for the same task makes an in-flight one obsolete. Drop it
-    // so its (possibly out-of-order) response can't overwrite the newer state.
-    this.pendingUpdates.get(id)?.unsubscribe();
+    // so its (possibly out-of-order) response can't overwrite the newer state,
+    // and terminate its result Subject so a caller awaiting it doesn't hang.
+    // The optimistic patch above already reflects the newest intent, so we
+    // resolve the superseded caller with that row (no error — nothing failed).
+    const stale = this.pendingUpdates.get(id);
+    if (stale) {
+      stale.sub.unsubscribe();
+      const latest = this.tasksSubject.getValue().find((t) => t.id === id);
+      if (latest) stale.result.next(latest);
+      stale.result.complete();
+      this.pendingUpdates.delete(id);
+    }
 
     const result = new Subject<Task>();
-    const subscription = from(this.patchTask(id, patch)).subscribe({
+    const sub = from(this.patchTask(id, patch)).subscribe({
       next: (updated) => {
         const current = this.tasksSubject.getValue();
         this.tasksSubject.next(current.map((t) => (t.id === id ? updated : t)));
-        this.pendingUpdates.delete(id);
+        if (this.pendingUpdates.get(id)?.result === result) this.pendingUpdates.delete(id);
         result.next(updated);
         result.complete();
       },
@@ -106,19 +120,29 @@ export class TaskService {
           const current = this.tasksSubject.getValue();
           this.tasksSubject.next(current.map((t) => (t.id === id ? previous : t)));
         }
-        this.pendingUpdates.delete(id);
+        if (this.pendingUpdates.get(id)?.result === result) this.pendingUpdates.delete(id);
         result.error(err);
       },
     });
-    this.pendingUpdates.set(id, subscription);
+    this.pendingUpdates.set(id, { sub, result });
 
     return result.asObservable();
   }
 
   deleteTask(id: string): Observable<void> {
+    const previous = this.tasksSubject.getValue();
+
+    // Optimistic removal — mirrors updateTask so the card disappears at once and
+    // the row is restored if the server rejects the delete.
+    if (previous.some((t) => t.id === id)) {
+      this.tasksSubject.next(previous.filter((t) => t.id !== id));
+    }
+
     return from(this.removeTask(id)).pipe(
-      tap(() => {
-        this.tasksSubject.next(this.tasksSubject.getValue().filter((t) => t.id !== id));
+      map(() => undefined),
+      catchError((err) => {
+        this.tasksSubject.next(previous);
+        return throwError(() => err);
       }),
     );
   }

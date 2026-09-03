@@ -54,6 +54,10 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'register.submit': '→ הרשמה',
     'register.submitting': 'יוצר חשבון...',
     'register.error': 'לא ניתן ליצור חשבון. ייתכן שכתובת הדוא"ל כבר רשומה.',
+    'register.error.exists': 'כתובת הדוא"ל כבר רשומה במערכת.',
+    'register.error.invalidEmail': 'כתובת הדוא"ל אינה תקינה.',
+    'register.error.rateLimit': 'יותר מדי ניסיונות. נסו שוב מאוחר יותר.',
+    'register.error.weakPassword': 'הסיסמה חייבת לכלול לפחות 6 תווים.',
     'register.checkEmail': 'כמעט סיימנו — אשרו את כתובת הדוא"ל שלכם דרך הקישור ששלחנו.',
 
     // Reset password
@@ -96,6 +100,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'card.edit': 'ערוך משימה',
     'card.delete': 'מחק משימה',
     'card.deleteConfirm': 'למחוק?',
+    'card.deleteError': 'המחיקה נכשלה',
 
     // Task dialog
     'dialog.title.create': 'משימה חדשה',
@@ -113,6 +118,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'dialog.submit.edit': 'שמור שינויים',
     'dialog.submitting.create': 'יוצר...',
     'dialog.submitting.edit': 'שומר...',
+    'dialog.error.save': 'לא ניתן לשמור את המשימה. נסו שוב.',
 
     // Errors (emitted as keys by services)
     'errors.loadTasks': 'שגיאה בטעינת המשימות',
@@ -167,6 +173,10 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'register.submit': '→ Sign up',
     'register.submitting': 'Creating account...',
     'register.error': "Couldn't create the account. The email may already be registered.",
+    'register.error.exists': 'That email is already registered.',
+    'register.error.invalidEmail': 'That email address is invalid.',
+    'register.error.rateLimit': 'Too many attempts. Please try again later.',
+    'register.error.weakPassword': 'Password must be at least 6 characters.',
     'register.checkEmail': 'Almost there — confirm your email via the link we just sent.',
 
     // Reset password
@@ -209,6 +219,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'card.edit': 'Edit task',
     'card.delete': 'Delete task',
     'card.deleteConfirm': 'Delete?',
+    'card.deleteError': 'Delete failed',
 
     // Task dialog
     'dialog.title.create': 'New task',
@@ -226,6 +237,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'dialog.submit.edit': 'Save changes',
     'dialog.submitting.create': 'Creating...',
     'dialog.submitting.edit': 'Saving...',
+    'dialog.error.save': "Couldn't save the task. Please try again.",
 
     // Errors (emitted as keys by services)
     'errors.loadTasks': 'Failed to load tasks',

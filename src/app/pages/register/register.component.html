@@ -106,7 +106,7 @@
         </div>
 
         @if (error()) {
-          <p class="error-msg">{{ error() }}</p>
+          <p class="error-msg">{{ i18n.t(error()!) }}</p>
         }
 
         <button type="submit" class="submit-btn" [disabled]="loading()">

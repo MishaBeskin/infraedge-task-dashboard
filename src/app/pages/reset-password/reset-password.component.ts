@@ -31,12 +31,27 @@ export class ResetPasswordComponent {
   loading = signal(false);
   error = signal<string | null>(null);
   showPassword = signal(false);
+  /** True once the recovery session is confirmed present. Until then submit is
+   *  blocked so updatePassword() can't fire without a session behind it. */
+  sessionReady = signal(false);
+
+  constructor() {
+    this.authService.whenReady().then(() => {
+      this.sessionReady.set(this.authService.isLoggedIn());
+      if (!this.authService.isLoggedIn()) {
+        this.error.set('reset.error');
+      }
+    });
+  }
 
   togglePassword() {
     this.showPassword.update((v) => !v);
   }
 
   async submit() {
+    if (!this.sessionReady()) {
+      return;
+    }
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;

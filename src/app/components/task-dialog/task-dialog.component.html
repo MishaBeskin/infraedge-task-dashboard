@@ -1,8 +1,12 @@
 <div class="overlay">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
     <div class="modal-header">
-      <h3 id="dialog-title" class="modal-title">{{ isEdit ? i18n.t('dialog.title.edit') : i18n.t('dialog.title.create') }}</h3>
-      <button class="close-btn" (click)="closed.emit()" [attr.aria-label]="i18n.t('dialog.close')">✕</button>
+      <h3 id="dialog-title" class="modal-title">
+        {{ isEdit ? i18n.t('dialog.title.edit') : i18n.t('dialog.title.create') }}
+      </h3>
+      <button class="close-btn" (click)="closed.emit()" [attr.aria-label]="i18n.t('dialog.close')">
+        ✕
+      </button>
     </div>
 
     <form [formGroup]="form" (ngSubmit)="submit()">
@@ -14,7 +18,7 @@
           formControlName="title"
           [placeholder]="i18n.t('dialog.field.title.placeholder')"
           [class.field-error]="form.controls.title.invalid && form.controls.title.touched"
-        >
+        />
         @if (form.controls.title.touched && form.controls.title.hasError('required')) {
           <span class="field-error-msg">{{ i18n.t('dialog.field.title.required') }}</span>
         }
@@ -22,7 +26,12 @@
 
       <div class="field">
         <label for="task-desc">{{ i18n.t('dialog.field.description') }}</label>
-        <textarea id="task-desc" formControlName="description" [placeholder]="i18n.t('dialog.field.description.placeholder')" rows="3"></textarea>
+        <textarea
+          id="task-desc"
+          formControlName="description"
+          [placeholder]="i18n.t('dialog.field.description.placeholder')"
+          rows="3"
+        ></textarea>
       </div>
 
       <div class="field">
@@ -37,15 +46,42 @@
       <div class="field">
         <label>{{ i18n.t('dialog.field.priority') }}</label>
         <div class="priority-toggle">
-          <button type="button" class="priority-btn" [class.selected]="form.value.priority === 'high'" (click)="setPriority('high')">{{ i18n.t('priority.high') }}</button>
-          <button type="button" class="priority-btn" [class.selected]="form.value.priority === 'medium'" (click)="setPriority('medium')">{{ i18n.t('priority.medium') }}</button>
-          <button type="button" class="priority-btn" [class.selected]="form.value.priority === 'low'" (click)="setPriority('low')">{{ i18n.t('priority.low') }}</button>
+          <button
+            type="button"
+            class="priority-btn"
+            [class.selected]="form.value.priority === 'high'"
+            (click)="setPriority('high')"
+          >
+            {{ i18n.t('priority.high') }}
+          </button>
+          <button
+            type="button"
+            class="priority-btn"
+            [class.selected]="form.value.priority === 'medium'"
+            (click)="setPriority('medium')"
+          >
+            {{ i18n.t('priority.medium') }}
+          </button>
+          <button
+            type="button"
+            class="priority-btn"
+            [class.selected]="form.value.priority === 'low'"
+            (click)="setPriority('low')"
+          >
+            {{ i18n.t('priority.low') }}
+          </button>
         </div>
       </div>
 
+      @if (error()) {
+        <p class="form-error" role="alert">{{ i18n.t(error()!) }}</p>
+      }
+
       <div class="modal-footer">
         <div class="footer-actions">
-          <button type="button" class="btn-cancel" (click)="closed.emit()">{{ i18n.t('dialog.cancel') }}</button>
+          <button type="button" class="btn-cancel" (click)="closed.emit()">
+            {{ i18n.t('dialog.cancel') }}
+          </button>
           <button type="submit" class="btn-submit" [disabled]="isSubmitting()">
             @if (isSubmitting()) {
               {{ isEdit ? i18n.t('dialog.submitting.edit') : i18n.t('dialog.submitting.create') }}

@@ -7,9 +7,15 @@
   flex-direction: column;
   transition: opacity 0.2s;
 
-  &[data-priority="high"]   { border-inline-start-color: var(--priority-high); }
-  &[data-priority="medium"] { border-inline-start-color: var(--priority-medium); }
-  &[data-priority="low"]    { border-inline-start-color: var(--priority-low); }
+  &[data-priority='high'] {
+    border-inline-start-color: var(--priority-high);
+  }
+  &[data-priority='medium'] {
+    border-inline-start-color: var(--priority-medium);
+  }
+  &[data-priority='low'] {
+    border-inline-start-color: var(--priority-low);
+  }
 
   &.is-updating {
     opacity: 0.5;
@@ -62,9 +68,15 @@
   font-size: 0.775rem;
   font-weight: 500;
 
-  &[data-priority="high"]   { color: var(--priority-high); }
-  &[data-priority="medium"] { color: var(--priority-medium); }
-  &[data-priority="low"]    { color: var(--priority-low); }
+  &[data-priority='high'] {
+    color: var(--priority-high);
+  }
+  &[data-priority='medium'] {
+    color: var(--priority-medium);
+  }
+  &[data-priority='low'] {
+    color: var(--priority-low);
+  }
 }
 
 .badge-dot {
@@ -73,9 +85,15 @@
   border-radius: 50%;
   flex-shrink: 0;
 
-  .priority-badge[data-priority="high"] &   { background: var(--priority-high); }
-  .priority-badge[data-priority="medium"] & { background: var(--priority-medium); }
-  .priority-badge[data-priority="low"] &    { background: var(--priority-low); }
+  .priority-badge[data-priority='high'] & {
+    background: var(--priority-high);
+  }
+  .priority-badge[data-priority='medium'] & {
+    background: var(--priority-medium);
+  }
+  .priority-badge[data-priority='low'] & {
+    background: var(--priority-low);
+  }
 }
 
 .card-divider {
@@ -106,9 +124,15 @@
   border-radius: 50%;
   flex-shrink: 0;
 
-  .status-select-wrapper[data-status="todo"] &        { background: var(--priority-low); }
-  .status-select-wrapper[data-status="in-progress"] & { background: var(--priority-medium); }
-  .status-select-wrapper[data-status="done"] &        { background: #5a9e6f; }
+  .status-select-wrapper[data-status='todo'] & {
+    background: var(--priority-low);
+  }
+  .status-select-wrapper[data-status='in-progress'] & {
+    background: var(--priority-medium);
+  }
+  .status-select-wrapper[data-status='done'] & {
+    background: #5a9e6f;
+  }
 }
 
 select {
@@ -159,7 +183,9 @@ select {
   cursor: pointer;
   color: var(--text-muted);
   flex-shrink: 0;
-  transition: color 0.15s, border-color 0.15s;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
 
   &:hover {
     color: var(--priority-high);
@@ -177,6 +203,14 @@ select {
     color: var(--priority-high);
     border-color: var(--priority-high);
   }
+}
+
+.card-error {
+  margin: 0;
+  padding: 0 0.875rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--priority-high);
 }
 
 .countdown-ring {
@@ -202,6 +236,10 @@ select {
 }
 
 @keyframes countdown-ring {
-  from { stroke-dashoffset: 0; }
-  to   { stroke-dashoffset: 43.98; }
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 43.98;
+  }
 }

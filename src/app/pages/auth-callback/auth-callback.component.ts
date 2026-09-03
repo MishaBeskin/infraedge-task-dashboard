@@ -26,15 +26,27 @@ export class AuthCallbackComponent {
   failed = signal(false);
 
   constructor() {
-    // A password-recovery link lands here too; send those on to set a new password.
-    if (window.location.hash.includes('type=recovery')) {
-      this.router.navigate(['/reset-password']);
+    const hash = window.location.hash;
+
+    // An OAuth error comes back in the hash (e.g. consent denied, bad secret).
+    if (/[#&]error=/.test(hash)) {
+      this.failed.set(true);
       return;
     }
 
-    // An OAuth error comes back in the hash (e.g. consent denied, bad secret).
-    if (/[#&]error=/.test(window.location.hash)) {
-      this.failed.set(true);
+    // A password-recovery link lands here too. Don't navigate immediately —
+    // that would strip the `#access_token=…&type=recovery` fragment and can
+    // race the Supabase client still parsing it. Wait until the recovery
+    // session is actually in place, then route on (keeping the fragment as a
+    // belt-and-braces in case reset-password needs to re-read it).
+    if (hash.includes('type=recovery')) {
+      this.authService.whenReady().then(() => {
+        if (this.authService.isLoggedIn()) {
+          this.router.navigate(['/reset-password'], { preserveFragment: true });
+        } else {
+          this.failed.set(true);
+        }
+      });
       return;
     }
 

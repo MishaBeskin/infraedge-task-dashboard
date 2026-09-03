@@ -1,4 +1,13 @@
-import { Component, Input, Output, EventEmitter, signal, inject, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  signal,
+  inject,
+  ChangeDetectionStrategy,
+  OnDestroy,
+} from '@angular/core';
 import { Task } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
 import { I18nService } from '../../services/i18n.service';
@@ -22,17 +31,30 @@ export class TaskCardComponent implements OnDestroy {
   isUpdating = signal(false);
   showDeleteConfirm = signal(false);
   isDragging = signal(false);
+  /** True once the confirmed delete request is in flight — blocks a fast
+   *  double-click from calling deleteTask twice. */
+  deleting = signal(false);
+  /** Translation key for an inline "delete failed" message, or null. */
+  deleteError = signal<string | null>(null);
 
   get priorityLabel(): string {
     return this.i18n.t(`priority.${this.task.priority}`);
   }
 
   onStatusChange(event: Event) {
-    const newStatus = (event.target as HTMLSelectElement).value as Task['status'];
+    const select = event.target as HTMLSelectElement;
+    // Captured before the optimistic update mutates the bound task, so the
+    // control can be snapped back to where it was if the request fails.
+    const previousStatus = this.task.status;
+    const newStatus = select.value as Task['status'];
     this.isUpdating.set(true);
     this.taskService.updateTask(this.task.id, { status: newStatus }).subscribe({
       next: () => this.isUpdating.set(false),
-      error: () => this.isUpdating.set(false),
+      error: () => {
+        this.isUpdating.set(false);
+        // The service reverted its state; realign the native control too.
+        select.value = previousStatus;
+      },
     });
   }
 
@@ -47,6 +69,10 @@ export class TaskCardComponent implements OnDestroy {
   }
 
   onDeleteClick() {
+    // Ignore any further clicks once a delete is already committed.
+    if (this.deleting()) {
+      return;
+    }
     if (!this.showDeleteConfirm()) {
       this.showDeleteConfirm.set(true);
       this.deleteTimer = setTimeout(() => {
@@ -55,7 +81,15 @@ export class TaskCardComponent implements OnDestroy {
       return;
     }
     clearTimeout(this.deleteTimer);
-    this.taskService.deleteTask(this.task.id).subscribe();
+    this.deleting.set(true);
+    this.deleteError.set(null);
+    this.taskService.deleteTask(this.task.id).subscribe({
+      error: () => {
+        this.deleting.set(false);
+        this.showDeleteConfirm.set(false);
+        this.deleteError.set('card.deleteError');
+      },
+    });
   }
 
   ngOnDestroy() {

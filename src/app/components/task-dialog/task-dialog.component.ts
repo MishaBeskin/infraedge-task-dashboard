@@ -33,6 +33,10 @@ export class TaskDialogComponent implements OnInit {
   protected i18n = inject(I18nService);
 
   isSubmitting = signal(false);
+  /** Translation key for a save failure, or null. Set instead of silently
+   *  swallowing the error so the user knows the task wasn't saved; the dialog
+   *  stays open so they can retry. */
+  error = signal<string | null>(null);
 
   form = this.fb.group({
     title: ['', Validators.required],
@@ -76,6 +80,7 @@ export class TaskDialogComponent implements OnInit {
     };
 
     this.isSubmitting.set(true);
+    this.error.set(null);
 
     const request$ =
       this.isEdit && this.task
@@ -88,7 +93,10 @@ export class TaskDialogComponent implements OnInit {
         this.taskSaved.emit(saved);
         this.closed.emit();
       },
-      error: () => this.isSubmitting.set(false),
+      error: () => {
+        this.isSubmitting.set(false);
+        this.error.set('dialog.error.save');
+      },
     });
   }
 }

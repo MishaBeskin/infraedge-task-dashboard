@@ -26,8 +26,8 @@ export class RegisterComponent {
   });
 
   loading = signal(false);
-  /** Display string for a failed sign-up — the raw Supabase message when there
-   *  is one, otherwise a translated fallback. */
+  /** Translation key for a failed sign-up — Supabase's raw message is mapped to
+   *  a known key (see mapSignUpError) so nothing untranslated reaches the UI. */
   error = signal<string | null>(null);
   /** Set when email confirmation is on and the user must click a link first. */
   checkEmail = signal(false);
@@ -50,7 +50,7 @@ export class RegisterComponent {
     this.loading.set(false);
 
     if (error) {
-      this.error.set(error.message || this.i18n.t('register.error'));
+      this.error.set(mapSignUpError(error));
       return;
     }
     // Email confirmation off -> a session is returned and we can go straight in.
@@ -64,4 +64,24 @@ export class RegisterComponent {
   signInWithGoogle() {
     void this.authService.signInWithGoogle();
   }
+}
+
+/** Maps a Supabase auth error to a translation key so the UI never shows a raw,
+ *  untranslated backend string. Falls back to the generic register.error. */
+function mapSignUpError(error: { message?: string; code?: string }): string {
+  const haystack = `${error.message ?? ''} ${error.code ?? ''}`.toLowerCase();
+
+  if (haystack.includes('already registered') || haystack.includes('already exists')) {
+    return 'register.error.exists';
+  }
+  if (haystack.includes('invalid') && haystack.includes('email')) {
+    return 'register.error.invalidEmail';
+  }
+  if (haystack.includes('rate limit')) {
+    return 'register.error.rateLimit';
+  }
+  if (haystack.includes('at least 6') || haystack.includes('password')) {
+    return 'register.error.weakPassword';
+  }
+  return 'register.error';
 }

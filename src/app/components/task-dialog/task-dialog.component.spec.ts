@@ -1,0 +1,85 @@
+import { TestBed } from '@angular/core/testing';
+import { Subject } from 'rxjs';
+import { TaskDialogComponent } from './task-dialog.component';
+import { TaskService } from '../../services/task.service';
+import { Task } from '../../models/task.model';
+
+class FakeTaskService {
+  lastCreate!: Subject<Task>;
+  lastUpdate!: Subject<Task>;
+
+  createTask = vi.fn(() => {
+    this.lastCreate = new Subject<Task>();
+    return this.lastCreate.asObservable();
+  });
+
+  updateTask = vi.fn(() => {
+    this.lastUpdate = new Subject<Task>();
+    return this.lastUpdate.asObservable();
+  });
+}
+
+function mountCreate() {
+  const fixture = TestBed.createComponent(TaskDialogComponent);
+  fixture.componentRef.setInput('mode', 'create');
+  fixture.detectChanges();
+  fixture.componentInstance.form.setValue({
+    title: 'A title',
+    description: '',
+    status: 'todo',
+    priority: 'medium',
+  });
+  return fixture;
+}
+
+describe('TaskDialogComponent', () => {
+  let svc: FakeTaskService;
+
+  beforeEach(() => {
+    svc = new FakeTaskService();
+    TestBed.configureTestingModule({
+      providers: [{ provide: TaskService, useValue: svc }],
+    });
+  });
+
+  it('sets the error key and keeps the dialog open when the save fails', () => {
+    const fixture = mountCreate();
+    const comp = fixture.componentInstance;
+    let closed = false;
+    comp.closed.subscribe(() => (closed = true));
+
+    comp.submit();
+    expect(comp.isSubmitting()).toBe(true);
+
+    svc.lastCreate.error(new Error('boom'));
+    fixture.detectChanges();
+
+    expect(comp.isSubmitting()).toBe(false);
+    expect(comp.error()).toBe('dialog.error.save');
+    expect(closed).toBe(false);
+    expect(fixture.nativeElement.querySelector('.form-error')).toBeTruthy();
+  });
+
+  it('clears any previous error and closes on a successful save', () => {
+    const fixture = mountCreate();
+    const comp = fixture.componentInstance;
+    comp.error.set('dialog.error.save');
+    let closed = false;
+    comp.closed.subscribe(() => (closed = true));
+
+    comp.submit();
+    svc.lastCreate.next({
+      id: '9',
+      title: 'A title',
+      status: 'todo',
+      priority: 'medium',
+      position: 1,
+      createdAt: 't',
+      updatedAt: 't',
+    });
+
+    expect(comp.error()).toBeNull();
+    expect(comp.isSubmitting()).toBe(false);
+    expect(closed).toBe(true);
+  });
+});

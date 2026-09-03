@@ -264,6 +264,37 @@ describe('TaskService', () => {
     expect(tasks[0].status).toBe('done');
   });
 
+  it('terminates a superseded update observable instead of leaving it hanging', async () => {
+    table.seed([mkTask({ id: '1', status: 'todo' })]);
+    await firstValueFrom(service.loadTasks());
+
+    const first$ = service.updateTask('1', { status: 'in-progress' });
+    const settled = firstValueFrom(first$).then(
+      () => 'settled',
+      () => 'settled',
+    );
+
+    service.updateTask('1', { status: 'done' }); // supersedes the first
+
+    const outcome = await Promise.race([
+      settled,
+      new Promise((r) => setTimeout(() => r('hung'), 50)),
+    ]);
+    expect(outcome).toBe('settled');
+  });
+
+  it('leaves tasks$ on the newest patch after a superseded update resolves', async () => {
+    table.seed([mkTask({ id: '1', status: 'todo' })]);
+    await firstValueFrom(service.loadTasks());
+
+    service.updateTask('1', { status: 'in-progress' });
+    await firstValueFrom(service.updateTask('1', { status: 'done' }));
+    await new Promise((r) => setTimeout(r));
+
+    const tasks = await firstValueFrom(service.tasks$);
+    expect(tasks[0].status).toBe('done');
+  });
+
   it('reverts the optimistic change if the request fails', async () => {
     table.seed([mkTask({ id: '1', status: 'todo' })]);
     await firstValueFrom(service.loadTasks());
@@ -294,5 +325,35 @@ describe('TaskService', () => {
 
     const tasks = await firstValueFrom(service.tasks$);
     expect(tasks.map((t) => t.id)).toEqual(['2']);
+  });
+
+  it('removes the task optimistically, before the request resolves', async () => {
+    table.seed([mkTask({ id: '1' }), mkTask({ id: '2', title: 'Keep' })]);
+    await firstValueFrom(service.loadTasks());
+
+    service.deleteTask('1').subscribe({ error: () => undefined }); // not awaited
+
+    const tasks = await firstValueFrom(service.tasks$);
+    expect(tasks.map((t) => t.id)).toEqual(['2']);
+  });
+
+  it('restores the row if the delete request fails', async () => {
+    table.seed([mkTask({ id: '1' }), mkTask({ id: '2', title: 'Keep' })]);
+    await firstValueFrom(service.loadTasks());
+
+    table.failNext = true;
+    let errored = false;
+    await new Promise<void>((resolve) => {
+      service.deleteTask('1').subscribe({
+        error: () => {
+          errored = true;
+          resolve();
+        },
+      });
+    });
+
+    expect(errored).toBe(true);
+    const tasks = await firstValueFrom(service.tasks$);
+    expect(tasks.map((t) => t.id)).toEqual(['1', '2']);
   });
 });

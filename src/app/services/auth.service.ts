@@ -19,9 +19,14 @@ export class AuthService {
   private readonly ready: Promise<void>;
 
   constructor() {
-    this.ready = this.supabase.auth.getSession().then(({ data }) => {
-      this.currentUserSubject.next(toAppUser(data.session?.user ?? null));
-    });
+    this.ready = this.supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        this.currentUserSubject.next(toAppUser(data.session?.user ?? null));
+      })
+      // A failed initial read must not reject `ready` — provideAppInitializer
+      // would blank the page and the guard would throw. Treat it as logged out.
+      .catch(() => this.currentUserSubject.next(null));
 
     this.supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       this.currentUserSubject.next(toAppUser(session?.user ?? null));

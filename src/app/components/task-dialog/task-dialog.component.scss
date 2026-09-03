@@ -47,7 +47,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 
   &:hover {
     background: var(--bg);
@@ -109,6 +111,16 @@ form {
 .field-error-msg {
   font-size: 0.775rem;
   color: var(--priority-high);
+}
+
+.form-error {
+  margin: 0 0 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius);
+  background: rgba(226, 75, 74, 0.08);
+  color: var(--priority-high);
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .priority-toggle {
