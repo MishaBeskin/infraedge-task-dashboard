@@ -4,12 +4,17 @@ import {
   Output,
   EventEmitter,
   ChangeDetectionStrategy,
+  ElementRef,
+  AfterViewInit,
+  OnDestroy,
+  ViewChild,
   inject,
   signal,
 } from '@angular/core';
 import { Task, Status } from '../../models/task.model';
 import { TaskCardComponent } from '../task-card/task-card.component';
 import { I18nService } from '../../services/i18n.service';
+import { PointerDragService } from '../../services/pointer-drag.service';
 
 /** Payload the column emits when a card is dropped on it.
  *  `targetIndex` is the slot in THIS column's currently rendered (filtered) card
@@ -28,7 +33,7 @@ export interface TaskDropEvent {
   styleUrl: './kanban-column.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class KanbanColumnComponent {
+export class KanbanColumnComponent implements AfterViewInit, OnDestroy {
   @Input() title = '';
   @Input() tasks: Task[] = [];
   @Input({ required: true }) status!: Status;
@@ -36,7 +41,10 @@ export class KanbanColumnComponent {
   @Output() editTask = new EventEmitter<Task>();
   @Output() taskDropped = new EventEmitter<TaskDropEvent>();
 
+  @ViewChild('columnRoot', { static: true }) private columnRoot!: ElementRef<HTMLElement>;
+
   protected i18n = inject(I18nService);
+  private pointerDrag = inject(PointerDragService);
 
   isDragOver = signal(false);
 
@@ -97,5 +105,25 @@ export class KanbanColumnComponent {
     if (taskId) {
       this.taskDropped.emit({ taskId, newStatus: this.status, targetIndex });
     }
+  }
+
+  // ── Touch / Pointer-Events drag path ────────────────────────────────
+  // The HTML5 handlers above never fire on touch devices. TaskCard drives the
+  // pointer drag and PointerDragService coordinates across columns; this column
+  // just exposes its highlight, insertion line and `taskDropped` output to it.
+
+  ngAfterViewInit() {
+    this.pointerDrag.register({
+      status: this.status,
+      element: this.columnRoot.nativeElement,
+      setDragOver: (active) => this.isDragOver.set(active),
+      setDropIndex: (index) => this.dropIndex.set(index),
+      emitDrop: (taskId, targetIndex) =>
+        this.taskDropped.emit({ taskId, newStatus: this.status, targetIndex }),
+    });
+  }
+
+  ngOnDestroy() {
+    this.pointerDrag.unregister(this.status);
   }
 }

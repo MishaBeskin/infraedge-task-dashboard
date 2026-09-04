@@ -1,3 +1,5 @@
+@use '../../../styles/breakpoints' as bp;
+
 .task-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -25,6 +27,8 @@
   &.is-dragging {
     opacity: 0.35;
     cursor: grabbing;
+    // While a pointer drag is live, don't let the browser hijack it for scroll.
+    touch-action: none;
   }
 }
 
@@ -44,6 +48,36 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
+}
+
+// Touch drag grip. Hidden on fine pointers, where native HTML5 drag is used;
+// shown on coarse pointers, where it is the only way to pick up a card.
+.drag-handle {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  align-self: stretch;
+  margin-block: -0.25rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: grab;
+  touch-action: none;
+
+  &:active {
+    cursor: grabbing;
+    color: var(--text-primary);
+  }
+}
+
+@media (pointer: coarse) {
+  .drag-handle {
+    display: flex;
+    width: 40px;
+  }
 }
 
 .card-title {
@@ -241,5 +275,27 @@ select {
   }
   to {
     stroke-dashoffset: 43.98;
+  }
+}
+
+// Touch: enlarge every interactive control on the card to a comfortable tap
+// target without changing desktop density.
+@media (pointer: coarse) {
+  .edit-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .delete-btn {
+    min-width: 40px;
+    height: 40px;
+  }
+
+  .status-select-wrapper {
+    padding-block: 0.5rem;
+  }
+
+  select {
+    min-height: 24px;
   }
 }

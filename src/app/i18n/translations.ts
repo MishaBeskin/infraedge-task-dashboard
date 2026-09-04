@@ -101,6 +101,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'card.delete': 'מחק משימה',
     'card.deleteConfirm': 'למחוק?',
     'card.deleteError': 'המחיקה נכשלה',
+    'card.drag': 'גרור לשינוי סדר',
 
     // Task dialog
     'dialog.title.create': 'משימה חדשה',
@@ -220,6 +221,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'card.delete': 'Delete task',
     'card.deleteConfirm': 'Delete?',
     'card.deleteError': 'Delete failed',
+    'card.drag': 'Drag to reorder',
 
     // Task dialog
     'dialog.title.create': 'New task',

@@ -28,7 +28,9 @@
   font-family: inherit;
   letter-spacing: 0.02em;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 
   & + .lang-btn {
     border-inline-start: 1.5px solid var(--lang-toggle-border);
@@ -41,5 +43,13 @@
   &.active {
     background: var(--lang-toggle-active-bg);
     color: var(--lang-toggle-active-fg);
+  }
+}
+
+// Touch: taller buttons so each language is an easy tap target.
+@media (pointer: coarse) {
+  .lang-btn {
+    min-height: 40px;
+    padding-block: 0.5rem;
   }
 }

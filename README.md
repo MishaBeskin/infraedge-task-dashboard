@@ -5,7 +5,7 @@
 
 ---
 
-A Kanban-style task manager built in Angular 21. Three columns (Todo / In Progress / Done), drag-and-drop between and within columns (card order persists), priority filtering, search, and inline editing. The UI defaults to Hebrew / RTL with an English / LTR runtime toggle.
+A Kanban-style task manager built in Angular 21. Three columns (Todo / In Progress / Done), drag-and-drop between and within columns (card order persists), priority filtering, search, and inline editing. The UI defaults to Hebrew / RTL with an English / LTR runtime toggle, and is responsive from ~360px phones up to desktop — below ~768px the three columns stack vertically and the login split collapses to one column.
 
 The backend is [Supabase](https://supabase.com) — hosted Postgres plus Auth. The Angular app talks to it directly through `@supabase/supabase-js`; there is no custom API server. Postgres Row-Level Security scopes every task to its owner, and authentication supports email + password, magic link, and Google. Schema and seed data are checked in under `supabase/`.
 
@@ -165,9 +165,22 @@ The alternative was two separate dialog components. They started identical and w
 
 `body { direction: rtl }` is set globally. All layout is written for RTL from the start rather than added as an override. In flex containers, "first in DOM" means "rightmost on screen" — the column header and task card HTML reflect this consistently. There are no LTR-to-RTL overrides anywhere.
 
-### HTML5 drag-and-drop (no library)
+### Responsive layout
 
-The drag-and-drop uses the browser's native `dragstart` / `dragover` / `drop` events — no `@angular/cdk`, no DnD library. The task ID is passed via `dataTransfer`.
+One breakpoint does the heavy lifting: `$mobile: 768px` (in `src/styles/_breakpoints.scss`, `@use`d by the component stylesheets). At or below it:
+
+- **Board** — `.board-columns` switches from a flex row to a vertical stack; each column drops its fixed height and grows with its cards while the page scrolls. The toolbar wraps, with the search box on its own full-width row above the filter pills.
+- **Login** — the 50/50 branding / form split stacks vertically, both panels full-width. The long marketing paragraph is hidden below `$phone: 400px`.
+- **Header** — the bar wraps and tightens; the "[N] tasks" line hides, "New task" collapses to an icon-only square (its `aria-label` stays), and the title block drops below 400px.
+- **Task dialog** — `width: min(480px, 100vw - 2rem)`; the field area scrolls inside the modal when the viewport is short.
+
+Touch devices (`@media (pointer: coarse)`) additionally get ≥40px hit targets on the pills, icon buttons, status select, priority toggle and language switch — desktop density is untouched.
+
+### Drag-and-drop — HTML5 for mouse, Pointer Events for touch
+
+Mouse drag uses the browser's native `dragstart` / `dragover` / `drop` events — no `@angular/cdk`, no DnD library. The task ID is passed via `dataTransfer`.
+
+Native HTML5 drag events never fire on touch, so on a phone there is a **parallel Pointer-Events path** (dual-path, split by `(pointer: coarse)` vs `(pointer: fine)`). Each card shows a grip handle on coarse pointers; it carries `touch-action: none`, so a drag that starts on it never scrolls the page, while a touch anywhere else on the card scrolls the list normally. `PointerDragService` (`src/app/services/pointer-drag.service.ts`) coordinates: the card calls `start()` on `pointerdown`, feeds viewport coordinates to `moveTo()` on every `pointermove` (which `preventDefault()`s), and calls `drop()` / `cancel()` on `pointerup` / `pointercancel`, with `setPointerCapture` keeping the stream on the handle. `moveTo()` hit-tests with `document.elementFromPoint` so dragging over a _stacked_ column on mobile still resolves the new status, and reuses the exact same `dropIndex` insertion line, `isDragOver` highlight and `taskDropped` (`TaskDropEvent`) output the mouse path feeds into — so `BoardComponent.onTaskDropped` and `TaskService.reorderColumn` are unchanged.
 
 **Drop at a position.** Each card is wrapped in a drop target. While a card is dragged over another card, the pointer's vertical position within that card decides insert-before (top half) vs insert-after (bottom half); `KanbanColumnComponent` tracks a `dropIndex` signal and renders a thin `.drop-line` indicator there. Dropping on the column background appends to the end. The drop emits `{ taskId, newStatus, targetIndex }` up to the board, where `targetIndex` is the slot in that column's currently rendered (filtered) card list.
 

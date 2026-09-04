@@ -1,3 +1,5 @@
+@use '../../../styles/breakpoints' as bp;
+
 .header {
   display: flex;
   align-items: center;
@@ -121,5 +123,80 @@
 
   &:hover {
     background: var(--brand-hover);
+  }
+}
+
+.btn-new-task__icon {
+  display: none;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+// ── Small screens: keep the 64px bar from overflowing at 360px ──────
+@media (max-width: bp.$mobile) {
+  .header {
+    height: auto;
+    min-height: 60px;
+    padding-block: 0.5rem;
+    padding-inline: 1rem;
+    gap: 0.5rem;
+  }
+
+  .header-right {
+    gap: 0.6rem;
+  }
+
+  .header-left {
+    gap: 0.4rem;
+  }
+
+  .logo {
+    font-size: 1.5rem;
+  }
+
+  .header-divider {
+    height: 32px;
+  }
+
+  .board-title {
+    font-size: 1.1rem;
+  }
+
+  // The "[N] tasks" line is redundant with the column count badges on a phone.
+  .board-subtitle {
+    display: none;
+  }
+
+  // "New task" collapses to an icon-only square (aria-label keeps it labelled).
+  .btn-new-task {
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+  }
+
+  .btn-new-task__text {
+    display: none;
+  }
+
+  .btn-new-task__icon {
+    display: block;
+  }
+}
+
+// Drop the title block entirely on the tightest phones — the logo is enough.
+@media (max-width: bp.$phone) {
+  .header-divider,
+  .title-block {
+    display: none;
+  }
+}
+
+// Touch: full-size hit areas for the icon buttons.
+@media (pointer: coarse) {
+  .btn-logout,
+  .btn-theme {
+    width: 40px;
+    height: 40px;
   }
 }

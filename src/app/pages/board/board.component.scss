@@ -1,3 +1,5 @@
+@use '../../../styles/breakpoints' as bp;
+
 :host {
   display: flex;
   flex-direction: column;
@@ -69,13 +71,25 @@
   flex-shrink: 0;
 }
 
-.pill-btn--high .pill-dot { background: var(--priority-high); }
-.pill-btn--medium .pill-dot { background: var(--priority-medium); }
-.pill-btn--low .pill-dot { background: var(--priority-low); }
+.pill-btn--high .pill-dot {
+  background: var(--priority-high);
+}
+.pill-btn--medium .pill-dot {
+  background: var(--priority-medium);
+}
+.pill-btn--low .pill-dot {
+  background: var(--priority-low);
+}
 
-.pill-btn--high.active .pill-dot { background: rgba(255,255,255,0.7); }
-.pill-btn--medium.active .pill-dot { background: rgba(255,255,255,0.7); }
-.pill-btn--low.active .pill-dot { background: rgba(255,255,255,0.5); }
+.pill-btn--high.active .pill-dot {
+  background: rgba(255, 255, 255, 0.7);
+}
+.pill-btn--medium.active .pill-dot {
+  background: rgba(255, 255, 255, 0.7);
+}
+.pill-btn--low.active .pill-dot {
+  background: rgba(255, 255, 255, 0.5);
+}
 
 .search-wrapper {
   position: relative;
@@ -102,7 +116,9 @@
   color: var(--text-primary);
   outline: none;
   width: 220px;
-  transition: border-color 0.15s, width 0.2s;
+  transition:
+    border-color 0.15s,
+    width 0.2s;
 
   &:focus {
     border-color: var(--text-primary);
@@ -144,8 +160,12 @@
 }
 
 @keyframes shimmer {
-  0% { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
 }
 
 .shimmer {
@@ -163,4 +183,64 @@
   color: var(--priority-high);
   font-size: 0.9rem;
   font-weight: 500;
+}
+
+// ── Small screens: stack the three columns, let the page scroll ─────
+@media (max-width: bp.$mobile) {
+  :host {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .toolbar {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+  }
+
+  // Search takes its own full-width row above the filter pills.
+  .search-wrapper {
+    order: 1;
+    width: 100%;
+  }
+
+  .search-input,
+  .search-input:focus {
+    width: 100%;
+  }
+
+  .filter-section {
+    order: 2;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .priority-pills {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .board-columns {
+    flex-direction: column;
+    flex: none;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .skeleton-col {
+    flex: none;
+  }
+}
+
+// Touch: keep the filter pills comfortably tappable without bloating desktop.
+@media (pointer: coarse) {
+  .pill-btn {
+    min-height: 40px;
+    padding-block: 0.5rem;
+  }
+
+  .search-input {
+    padding-block: 0.65rem;
+  }
 }

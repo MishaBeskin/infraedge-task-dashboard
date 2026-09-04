@@ -40,6 +40,19 @@ CSS custom properties to define in styles.scss:
 
 Global body: direction rtl, font system-ui, background var(--bg).
 
+## Responsive
+
+The app is responsive from ~360px up. One SCSS breakpoint drives it:
+`src/styles/_breakpoints.scss` exports `$mobile: 768px` (and `$phone: 400px`),
+`@use`d by the component stylesheets — media queries can't read CSS custom
+properties, so these are SCSS vars, not tokens. At/below `$mobile` the board's
+three `.board-columns` stack vertically (each full-width, page scrolls, no inner
+scroll cap), the login 50/50 split stacks, the header bar wraps, and the toolbar
+wraps with search on its own row. Keep RTL correct at every breakpoint — use
+logical properties (`inline-start`/`inline-end`, `padding-inline`), never
+`left`/`right`. Touch tap-target bumps go under `@media (pointer: coarse)` so
+desktop density is unaffected.
+
 ## Data models
 
 File: src/app/models/task.model.ts
@@ -197,12 +210,24 @@ White card column, rounded corners, max-height with overflow-y scroll.
 - List of TaskCardComponent, each wrapped in a drop target
 - Empty state: dashed border placeholder "אין משימות"
 - - button emits addTask with the column's status
-- Native HTML5 DnD (no library). dragCounter keeps the column highlight stable
-  across child enter/leave. dropIndex signal + a `.drop-line` indicator show where
-  a card will land; pointer Y within the hovered card picks insert-before vs
-  insert-after; dropping on the background appends. onDrop emits taskDropped with
-  targetIndex = the slot in this column's rendered (filtered) list, 0..list.length.
-  Same-column reordering is supported and persisted via TaskService.reorderColumn.
+- Native HTML5 DnD (no library) for mouse. dragCounter keeps the column highlight
+  stable across child enter/leave. dropIndex signal + a `.drop-line` indicator
+  show where a card will land; pointer Y within the hovered card picks
+  insert-before vs insert-after; dropping on the background appends. onDrop emits
+  taskDropped with targetIndex = the slot in this column's rendered (filtered)
+  list, 0..list.length. Same-column reordering is supported and persisted via
+  TaskService.reorderColumn.
+- Touch: HTML5 drag events don't fire on touch, so there's a parallel
+  Pointer-Events path (dual-path, split by `(pointer: coarse)` / `(pointer:
+fine)`). Each column registers a handle with `PointerDragService`
+  (`services/pointer-drag.service.ts`) in ngAfterViewInit / unregisters in
+  ngOnDestroy. The service drives the same `isDragOver` / `dropIndex` signals and
+  fires the same `taskDropped` output, so BoardComponent and reorderColumn are
+  untouched. TaskCard has a `.drag-handle` grip (shown only on coarse pointers,
+  `touch-action: none`) that runs `pointerdown` → `start()`, `pointermove` →
+  `moveTo()` (preventDefault), `pointerup` → `drop()`, with `setPointerCapture`.
+  `moveTo()` uses `document.elementFromPoint` so dragging over a vertically
+  stacked column on mobile still resolves the target status.
 
 ## TaskCardComponent
 
@@ -215,6 +240,8 @@ White card with colored right border by priority (high=red, medium=orange, low=g
 - Native <select> for status change (לעשות/בתהליך/הושלם) — on change calls TaskService.updateTask()
 - Trash button — first click shows "למחוק?" confirm inline, second click calls TaskService.deleteTask()
 - isUpdating flag: opacity 0.5 and disabled during PATCH request
+- `draggable="true"` for mouse (HTML5 DnD). A `.drag-handle` grip, shown only on
+  `(pointer: coarse)`, starts the touch Pointer-Events drag (see KanbanColumn).
 
 ## NewTaskDialogComponent
 

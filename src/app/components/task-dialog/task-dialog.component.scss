@@ -1,3 +1,5 @@
+@use '../../../styles/breakpoints' as bp;
+
 .overlay {
   position: fixed;
   inset: 0;
@@ -7,17 +9,24 @@
   justify-content: center;
   padding: 1rem;
   z-index: 50;
+  // If the modal is taller than a short viewport, the overlay itself scrolls.
+  overflow-y: auto;
 }
 
 .modal {
   background: var(--surface);
   border-radius: calc(var(--radius) * 1.2);
-  width: 100%;
-  max-width: 480px;
+  // Never wider than the viewport (minus the overlay's 1rem gutters).
+  width: min(480px, 100vw - 2rem);
+  max-height: 100vh;
+  max-height: calc(100dvh - 2rem);
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.18);
   // Follow the active language (dir on <html>) instead of forcing RTL.
   direction: inherit;
   overflow: hidden;
+  // Header stays put; the form area scrolls when the content is tall.
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
@@ -26,6 +35,7 @@
   justify-content: space-between;
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .modal-title {
@@ -62,6 +72,10 @@ form {
   display: flex;
   flex-direction: column;
   gap: 1.125rem;
+  // Scroll the fields (not the whole page) when the modal is capped by
+  // max-height on a short viewport.
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .field {
@@ -204,5 +218,47 @@ form {
   &:disabled {
     opacity: 0.55;
     cursor: not-allowed;
+  }
+}
+
+// ── Small screens: full-width footer buttons, tighter padding ───────
+@media (max-width: bp.$mobile) {
+  .modal-header,
+  form {
+    padding-inline: 1.25rem;
+  }
+
+  .modal-footer {
+    padding-inline: 1.25rem;
+    margin-inline: -1.25rem;
+  }
+
+  .footer-actions {
+    width: 100%;
+  }
+
+  .btn-cancel,
+  .btn-submit {
+    flex: 1;
+  }
+}
+
+// Touch: comfortable hit areas for every control in the dialog.
+@media (pointer: coarse) {
+  .close-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .field input,
+  .field select,
+  .field textarea {
+    padding-block: 0.7rem;
+  }
+
+  .priority-btn,
+  .btn-cancel,
+  .btn-submit {
+    min-height: 44px;
   }
 }

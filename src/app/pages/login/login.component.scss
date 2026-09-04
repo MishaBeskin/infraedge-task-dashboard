@@ -1,4 +1,5 @@
 @use '../auth-shared';
+@use '../../../styles/breakpoints' as bp;
 
 .login-page {
   display: flex;
@@ -82,4 +83,56 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+// ── Small screens: stack the two panels vertically ──────────────────
+@media (max-width: bp.$mobile) {
+  .login-page {
+    flex-direction: column;
+  }
+
+  .panel {
+    flex: none;
+  }
+
+  .panel--brand {
+    padding: 1.5rem 1.25rem;
+    gap: 1.5rem;
+  }
+
+  .panel--form {
+    padding: 1.75rem 1.25rem;
+    align-items: flex-start;
+  }
+
+  .brand-body {
+    flex: 0 0 auto;
+    gap: 0.75rem;
+  }
+
+  .brand-headline {
+    font-size: clamp(1.5rem, 6vw, 2rem);
+  }
+
+  .form-wrapper {
+    max-width: 100%;
+    gap: 1.25rem;
+  }
+}
+
+// The long marketing paragraph is the first thing to go on the tightest phones.
+@media (max-width: bp.$phone) {
+  .brand-subtitle {
+    display: none;
+  }
+}
+
+// Touch: give the show/hide-password toggle a full-size hit area.
+// (.eye-btn is pulled in from auth-shared and scoped to this component.)
+@media (pointer: coarse) {
+  .eye-btn {
+    min-width: 40px;
+    min-height: 40px;
+    justify-content: center;
+  }
 }

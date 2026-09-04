@@ -9,6 +9,25 @@
 >
   <div class="card-body">
     <div class="card-title-row">
+      <button
+        class="drag-handle"
+        type="button"
+        [attr.aria-label]="i18n.t('card.drag')"
+        (pointerdown)="onHandlePointerDown($event)"
+        (pointermove)="onHandlePointerMove($event)"
+        (pointerup)="onHandlePointerUp($event)"
+        (pointercancel)="onHandlePointerCancel($event)"
+        (lostpointercapture)="onHandlePointerCancel($event)"
+      >
+        <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor" aria-hidden="true">
+          <circle cx="3" cy="3" r="1.5" />
+          <circle cx="9" cy="3" r="1.5" />
+          <circle cx="3" cy="8" r="1.5" />
+          <circle cx="9" cy="8" r="1.5" />
+          <circle cx="3" cy="13" r="1.5" />
+          <circle cx="9" cy="13" r="1.5" />
+        </svg>
+      </button>
       <p class="card-title">{{ task.title }}</p>
       <button
         class="edit-btn"

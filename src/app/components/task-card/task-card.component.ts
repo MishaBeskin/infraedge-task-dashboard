@@ -11,6 +11,7 @@ import {
 import { Task } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
 import { I18nService } from '../../services/i18n.service';
+import { PointerDragService } from '../../services/pointer-drag.service';
 
 @Component({
   selector: 'app-task-card',
@@ -26,7 +27,10 @@ export class TaskCardComponent implements OnDestroy {
 
   private taskService = inject(TaskService);
   protected i18n = inject(I18nService);
+  private pointerDrag = inject(PointerDragService);
   private deleteTimer?: ReturnType<typeof setTimeout>;
+  /** pointerId of the in-progress touch/pen drag, or null. */
+  private dragPointerId: number | null = null;
 
   isUpdating = signal(false);
   showDeleteConfirm = signal(false);
@@ -66,6 +70,53 @@ export class TaskCardComponent implements OnDestroy {
 
   onDragEnd() {
     this.isDragging.set(false);
+  }
+
+  // ── Touch / Pointer-Events drag (via the grip handle) ───────────────
+  // HTML5 drag events don't fire on touch. The handle carries
+  // `touch-action: none`, so a drag that starts on it never scrolls the page;
+  // touches anywhere else on the card scroll the list as normal.
+
+  onHandlePointerDown(event: PointerEvent) {
+    // Mouse keeps the native HTML5 draggable path.
+    if (event.pointerType === 'mouse') return;
+    const handle = event.currentTarget as HTMLElement;
+    handle.setPointerCapture?.(event.pointerId);
+    this.dragPointerId = event.pointerId;
+    this.isDragging.set(true);
+    this.pointerDrag.start(this.task.id);
+    this.pointerDrag.moveTo(event.clientX, event.clientY);
+  }
+
+  onHandlePointerMove(event: PointerEvent) {
+    if (this.dragPointerId !== event.pointerId || !this.isDragging()) return;
+    // Stop the browser from turning the drag into a scroll / gesture.
+    event.preventDefault();
+    this.pointerDrag.moveTo(event.clientX, event.clientY);
+  }
+
+  onHandlePointerUp(event: PointerEvent) {
+    if (this.dragPointerId !== event.pointerId) return;
+    this.releaseCapture(event);
+    if (this.isDragging()) {
+      this.isDragging.set(false);
+      this.pointerDrag.drop();
+    }
+  }
+
+  onHandlePointerCancel(event: PointerEvent) {
+    if (this.dragPointerId !== event.pointerId) return;
+    this.releaseCapture(event);
+    this.isDragging.set(false);
+    this.pointerDrag.cancel();
+  }
+
+  private releaseCapture(event: PointerEvent) {
+    const el = event.currentTarget as HTMLElement | null;
+    if (el?.hasPointerCapture?.(event.pointerId)) {
+      el.releasePointerCapture(event.pointerId);
+    }
+    this.dragPointerId = null;
   }
 
   onDeleteClick() {

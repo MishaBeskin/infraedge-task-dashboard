@@ -1,0 +1,10 @@
+// Shared responsive breakpoints. Keep this list short — the app has exactly one
+// "small screen" cut where the board columns and the login split stack
+// vertically, plus a narrower cut for the tightest phones.
+//
+// Usage from a component stylesheet:
+//   @use '../../../styles/breakpoints' as bp;
+//   @media (max-width: bp.$mobile) { ... }
+
+$mobile: 768px; // tablet portrait and below → single-column layout
+$phone: 400px; // very small phones → drop non-essential chrome

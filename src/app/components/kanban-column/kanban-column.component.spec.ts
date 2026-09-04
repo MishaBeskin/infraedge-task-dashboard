@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { KanbanColumnComponent, TaskDropEvent } from './kanban-column.component';
+import { PointerDragService, ColumnDragHandle } from '../../services/pointer-drag.service';
 import { Task, Status } from '../../models/task.model';
 
 const mk = (id: string): Task => ({
@@ -156,5 +157,52 @@ describe('KanbanColumnComponent', () => {
 
     comp.onDragLeave(); // leave the column boundary
     expect(comp.dropIndex()).toBeNull();
+  });
+
+  // ── Pointer (touch) drag path ───────────────────────────────────
+
+  it('registers a pointer-drag handle and unregisters it on destroy', () => {
+    TestBed.configureTestingModule({});
+    const svc = TestBed.inject(PointerDragService);
+    const registerSpy = vi.spyOn(svc, 'register');
+    const unregisterSpy = vi.spyOn(svc, 'unregister');
+
+    const fixture = TestBed.createComponent(KanbanColumnComponent);
+    fixture.componentRef.setInput('status', 'done');
+    fixture.componentRef.setInput('tasks', [mk('1')]);
+    fixture.detectChanges();
+
+    expect(registerSpy).toHaveBeenCalledTimes(1);
+    const handle: ColumnDragHandle = registerSpy.mock.calls[0][0];
+    expect(handle.status).toBe('done');
+    expect(handle.element.classList.contains('column')).toBe(true);
+
+    fixture.destroy();
+    expect(unregisterSpy).toHaveBeenCalledWith('done');
+  });
+
+  it('handle callbacks drive the highlight / drop-line and emit taskDropped', () => {
+    TestBed.configureTestingModule({});
+    const svc = TestBed.inject(PointerDragService);
+    const registerSpy = vi.spyOn(svc, 'register');
+
+    const fixture = TestBed.createComponent(KanbanColumnComponent);
+    fixture.componentRef.setInput('status', 'in-progress');
+    fixture.componentRef.setInput('tasks', [mk('1'), mk('2')]);
+    fixture.detectChanges();
+
+    const handle: ColumnDragHandle = registerSpy.mock.calls[0][0];
+    const comp = fixture.componentInstance;
+
+    handle.setDragOver(true);
+    expect(comp.isDragOver()).toBe(true);
+    handle.setDropIndex(1);
+    expect(comp.dropIndex()).toBe(1);
+
+    const events: TaskDropEvent[] = [];
+    comp.taskDropped.subscribe((e) => events.push(e));
+    handle.emitDrop('task-5', 2);
+
+    expect(events).toEqual([{ taskId: 'task-5', newStatus: 'in-progress', targetIndex: 2 }]);
   });
 });

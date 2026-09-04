@@ -1,3 +1,5 @@
+@use '../../../styles/breakpoints' as bp;
+
 :host {
   display: block;
   flex: 1;
@@ -126,4 +128,31 @@
   height: 2px;
   border-radius: 2px;
   background: var(--brand);
+}
+
+// ── Small screens: column grows with its content, page scrolls ──────
+@media (max-width: bp.$mobile) {
+  :host {
+    height: auto;
+  }
+
+  .column {
+    height: auto;
+  }
+
+  // A short inner scroll area on a phone is worse than just letting the page
+  // scroll — the column expands to fit every card.
+  .task-list {
+    overflow: visible;
+    flex: none;
+  }
+}
+
+// Touch: full-size "add task" hit area in the column header.
+@media (pointer: coarse) {
+  .add-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
+  }
 }
