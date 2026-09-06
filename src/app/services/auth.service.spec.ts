@@ -5,6 +5,27 @@ import { SupabaseService } from './supabase.service';
 
 type AuthCb = (event: string, session: unknown) => void;
 
+/** In-memory localStorage — the runner's global is a method-less stub. */
+function memoryStorage(): Storage {
+  let store: Record<string, string> = {};
+  return {
+    getItem: (k: string) => (k in store ? store[k] : null),
+    setItem: (k: string, v: string) => {
+      store[k] = String(v);
+    },
+    removeItem: (k: string) => {
+      delete store[k];
+    },
+    clear: () => {
+      store = {};
+    },
+    key: (i: number) => Object.keys(store)[i] ?? null,
+    get length() {
+      return Object.keys(store).length;
+    },
+  } as Storage;
+}
+
 /** Fake of supabase.auth — records calls and lets tests drive the auth state. */
 class FakeAuth {
   private cb: AuthCb = () => {};
@@ -52,6 +73,14 @@ function setup(initialSession: { user: Record<string, unknown> } | null = null) 
 }
 
 describe('AuthService', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', memoryStorage());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('is created', () => {
     const { service } = setup();
     expect(service).toBeTruthy();
@@ -143,5 +172,28 @@ describe('AuthService', () => {
     const { service, auth } = setup();
     await service.signOut();
     expect(auth.signOut).toHaveBeenCalled();
+  });
+
+  it('clears every stack_cache_v1 entry on sign-out, leaving other keys alone', async () => {
+    localStorage.setItem('stack_cache_v1:tasks:uid-1', '[]');
+    localStorage.setItem('stack_cache_v1:boardName:uid-1', '"Roadmap"');
+    localStorage.setItem('stack_theme', 'dark');
+
+    const { service } = setup();
+    await service.signOut();
+
+    expect(localStorage.getItem('stack_cache_v1:tasks:uid-1')).toBeNull();
+    expect(localStorage.getItem('stack_cache_v1:boardName:uid-1')).toBeNull();
+    expect(localStorage.getItem('stack_theme')).toBe('dark');
+  });
+
+  it('clears the stack cache when the session drops to null', async () => {
+    localStorage.setItem('stack_cache_v1:tasks:uid-1', '[]');
+
+    const { service, auth } = setup({ user: userWith({}) });
+    await service.whenReady();
+    auth.emit(null);
+
+    expect(localStorage.getItem('stack_cache_v1:tasks:uid-1')).toBeNull();
   });
 });

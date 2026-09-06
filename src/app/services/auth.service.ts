@@ -3,6 +3,7 @@ import { BehaviorSubject } from 'rxjs';
 import type { AuthChangeEvent, Session, User as SbUser } from '@supabase/supabase-js';
 import { SupabaseService } from './supabase.service';
 import { AppUser } from '../models/task.model';
+import { clearAllCache } from './cache.util';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -29,6 +30,9 @@ export class AuthService {
       .catch(() => this.currentUserSubject.next(null));
 
     this.supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+      // A signed-out state must not leave the previous account's board data in
+      // localStorage for the next person to use this browser.
+      if (!session) clearAllCache();
       this.currentUserSubject.next(toAppUser(session?.user ?? null));
     });
   }
@@ -79,6 +83,8 @@ export class AuthService {
   }
 
   signOut() {
+    // Clear immediately too — don't wait for the onAuthStateChange callback.
+    clearAllCache();
     return this.supabase.auth.signOut();
   }
 

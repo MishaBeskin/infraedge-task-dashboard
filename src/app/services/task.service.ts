@@ -3,6 +3,8 @@ import { BehaviorSubject, Observable, Subject, Subscription, from, of, throwErro
 import { catchError, map, tap } from 'rxjs/operators';
 import { Task, NewTask, TaskPatch, Status, Priority } from '../models/task.model';
 import { SupabaseService } from './supabase.service';
+import { AuthService } from './auth.service';
+import { readCacheRaw, tasksCacheKey, writeCache } from './cache.util';
 
 interface TaskRow {
   id: string;
@@ -40,9 +42,12 @@ const toRow = (patch: TaskPatch): Record<string, unknown> => {
 @Injectable({ providedIn: 'root' })
 export class TaskService {
   private supabase = inject(SupabaseService).client;
+  private auth = inject(AuthService);
 
   private tasksSubject = new BehaviorSubject<Task[]>([]);
   private loadingSubject = new BehaviorSubject<boolean>(false);
+  /** Background refresh is running while a cached list is already on screen. */
+  private revalidatingSubject = new BehaviorSubject<boolean>(false);
   private errorSubject = new BehaviorSubject<string | null>(null);
   /** In-flight PATCHes keyed by task id. Kept so a newer update for the same
    *  task can supersede an older one — both the Supabase subscription and the
@@ -55,23 +60,73 @@ export class TaskService {
 
   tasks$ = this.tasksSubject.asObservable();
   loading$ = this.loadingSubject.asObservable();
+  revalidating$ = this.revalidatingSubject.asObservable();
   error$ = this.errorSubject.asObservable();
+
+  /** Emit a new task list AND write it through to the per-user localStorage
+   *  cache, so the cache always mirrors the live list — optimistic states and
+   *  reverts included. */
+  private setTasks(tasks: Task[]): void {
+    this.tasksSubject.next(tasks);
+    const uid = this.auth.getCurrentUser()?.id;
+    if (uid) writeCache(tasksCacheKey(uid), tasks);
+  }
+
+  /** Last-known task list for the signed-in user, or null when there's no uid,
+   *  no cache, or the blob is missing/corrupt/not a Task[]. */
+  private readCachedTasks(): Task[] | null {
+    const uid = this.auth.getCurrentUser()?.id;
+    if (!uid) return null;
+    const raw = readCacheRaw(tasksCacheKey(uid));
+    if (!raw) return null;
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return null;
+      const valid = parsed.every(
+        (t) =>
+          !!t &&
+          typeof (t as Task).id === 'string' &&
+          typeof (t as Task).status === 'string' &&
+          typeof (t as Task).position === 'number',
+      );
+      return valid ? (parsed as Task[]) : null;
+    } catch {
+      return null;
+    }
+  }
 
   /** Loads every task the signed-in user owns. RLS scopes the query on the
    *  server, so no user id is passed. */
   loadTasks(): Observable<void> {
-    this.loadingSubject.next(true);
+    // Stale-while-revalidate: if a cached list exists, paint it synchronously and
+    // skip the skeleton — the fetch below still runs and overwrites it. The raw
+    // `next` (not setTasks) avoids re-writing the cache with what we just read.
+    const cached = this.readCachedTasks();
+    if (cached) {
+      this.tasksSubject.next(cached);
+      this.revalidatingSubject.next(true);
+    } else {
+      this.loadingSubject.next(true);
+    }
     this.errorSubject.next(null);
+
     return from(this.fetchTasks()).pipe(
       tap((rows) => {
-        this.tasksSubject.next(rows.map(fromRow));
+        this.setTasks(rows.map(fromRow));
         this.loadingSubject.next(false);
+        this.revalidatingSubject.next(false);
       }),
       map(() => undefined),
       catchError(() => {
-        // Emit a translation key; the board resolves it via I18nService.
-        this.errorSubject.next('errors.loadTasks');
         this.loadingSubject.next(false);
+        this.revalidatingSubject.next(false);
+        if (cached) {
+          // A usable list is already on screen — keep it, don't raise the banner.
+          console.warn('[TaskService] task refresh failed; showing cached list');
+        } else {
+          // Emit a translation key; the board resolves it via I18nService.
+          this.errorSubject.next('errors.loadTasks');
+        }
         return of(undefined);
       }),
     );
@@ -82,7 +137,7 @@ export class TaskService {
     const position = existing.length ? Math.max(...existing.map((t) => t.position)) + 1 : 1;
     return from(this.insertTask(input, position)).pipe(
       tap((created) => {
-        this.tasksSubject.next([...this.tasksSubject.getValue(), created]);
+        this.setTasks([...this.tasksSubject.getValue(), created]);
       }),
     );
   }
@@ -93,7 +148,7 @@ export class TaskService {
 
     // Apply the change immediately so a slow connection can't leave a card in a
     // column the user already dragged it out of.
-    this.tasksSubject.next(tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+    this.setTasks(tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)));
 
     // A newer change for the same task makes an in-flight one obsolete. Drop it
     // so its (possibly out-of-order) response can't overwrite the newer state,
@@ -113,7 +168,7 @@ export class TaskService {
     const sub = from(this.patchTask(id, patch)).subscribe({
       next: (updated) => {
         const current = this.tasksSubject.getValue();
-        this.tasksSubject.next(current.map((t) => (t.id === id ? updated : t)));
+        this.setTasks(current.map((t) => (t.id === id ? updated : t)));
         if (this.pendingUpdates.get(id)?.result === result) this.pendingUpdates.delete(id);
         result.next(updated);
         result.complete();
@@ -121,7 +176,7 @@ export class TaskService {
       error: (err) => {
         if (previous) {
           const current = this.tasksSubject.getValue();
-          this.tasksSubject.next(current.map((t) => (t.id === id ? previous : t)));
+          this.setTasks(current.map((t) => (t.id === id ? previous : t)));
         }
         if (this.pendingUpdates.get(id)?.result === result) this.pendingUpdates.delete(id);
         result.error(err);
@@ -161,7 +216,7 @@ export class TaskService {
     if (changed.length === 0) return of(undefined);
 
     const patchById = new Map(changed.map((c) => [c.id, c]));
-    this.tasksSubject.next(
+    this.setTasks(
       snapshot.map((t) => {
         const c = patchById.get(t.id);
         return c ? { ...t, position: c.position, status: c.status ?? t.status } : t;
@@ -184,7 +239,7 @@ export class TaskService {
         result.complete();
       },
       error: (err) => {
-        this.tasksSubject.next(snapshot);
+        this.setTasks(snapshot);
         if (this.pendingReorders.get(key)?.result === result) this.pendingReorders.delete(key);
         result.error(err);
       },
@@ -200,13 +255,13 @@ export class TaskService {
     // Optimistic removal — mirrors updateTask so the card disappears at once and
     // the row is restored if the server rejects the delete.
     if (previous.some((t) => t.id === id)) {
-      this.tasksSubject.next(previous.filter((t) => t.id !== id));
+      this.setTasks(previous.filter((t) => t.id !== id));
     }
 
     return from(this.removeTask(id)).pipe(
       map(() => undefined),
       catchError((err) => {
-        this.tasksSubject.next(previous);
+        this.setTasks(previous);
         return throwError(() => err);
       }),
     );

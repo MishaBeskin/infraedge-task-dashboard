@@ -2,6 +2,30 @@ import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { TaskService } from './task.service';
 import { SupabaseService } from './supabase.service';
+import { AuthService } from './auth.service';
+import { tasksCacheKey } from './cache.util';
+
+/** The test runner's `localStorage` is a stub without methods, so persistence
+ *  specs install a real in-memory one (matches theme/i18n specs). */
+function memoryStorage(): Storage {
+  let store: Record<string, string> = {};
+  return {
+    getItem: (k: string) => (k in store ? store[k] : null),
+    setItem: (k: string, v: string) => {
+      store[k] = String(v);
+    },
+    removeItem: (k: string) => {
+      delete store[k];
+    },
+    clear: () => {
+      store = {};
+    },
+    key: (i: number) => Object.keys(store)[i] ?? null,
+    get length() {
+      return Object.keys(store).length;
+    },
+  } as Storage;
+}
 
 // ── Minimal in-memory fake of the Supabase query builder ──────────────────────
 // Implements just enough of .from(table).select/insert/update/delete/eq/order/
@@ -151,16 +175,26 @@ const mkTask = (over: Partial<Row> = {}): Partial<Row> => ({
 describe('TaskService', () => {
   let service: TaskService;
   let table: FakeTable;
+  let auth: { getCurrentUser: () => { id: string } | null };
 
   beforeEach(() => {
+    vi.stubGlobal('localStorage', memoryStorage());
     table = new FakeTable();
+    auth = { getCurrentUser: () => ({ id: 'u1' }) };
     const supabaseMock = {
       client: { from: () => new FakeQuery(table) },
     };
     TestBed.configureTestingModule({
-      providers: [{ provide: SupabaseService, useValue: supabaseMock }],
+      providers: [
+        { provide: SupabaseService, useValue: supabaseMock },
+        { provide: AuthService, useValue: auth },
+      ],
     });
     service = TestBed.inject(TaskService);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   // ── Construction ────────────────────────────────────────────────
@@ -442,5 +476,117 @@ describe('TaskService', () => {
       ['2', 2],
       ['3', 3],
     ]);
+  });
+
+  // ── localStorage cache (stale-while-revalidate) ────────────────
+
+  const seedCache = (uid: string, rows: Partial<Row>[]) =>
+    localStorage.setItem(
+      tasksCacheKey(uid),
+      JSON.stringify(
+        rows.map((r, i) => ({
+          id: String(i + 1),
+          title: 'Cached',
+          status: 'todo',
+          priority: 'medium',
+          position: i + 1,
+          createdAt: 't0',
+          updatedAt: 't0',
+          ...r,
+        })),
+      ),
+    );
+
+  it('seeds tasks$ synchronously from cache before the fetch resolves', async () => {
+    seedCache('u1', [{ id: '1', title: 'FromCache' }]);
+    table.seed([mkTask({ id: '9', title: 'FromServer', position: 1 })]);
+
+    service.loadTasks().subscribe(); // not awaited — check the synchronous seed
+
+    expect((await firstValueFrom(service.tasks$)).map((t) => t.title)).toEqual(['FromCache']);
+  });
+
+  it('does not show the skeleton when a cache hit seeds the list', async () => {
+    seedCache('u1', [{ id: '1' }]);
+    const seen: boolean[] = [];
+    service.loading$.subscribe((l) => seen.push(l));
+
+    await firstValueFrom(service.loadTasks());
+
+    expect(seen).not.toContain(true);
+  });
+
+  it('overwrites the cached list with server data once the fetch resolves', async () => {
+    seedCache('u1', [{ id: '1', title: 'Stale' }]);
+    table.seed([mkTask({ id: '9', title: 'Fresh', position: 1 })]);
+
+    await firstValueFrom(service.loadTasks());
+
+    expect((await firstValueFrom(service.tasks$)).map((t) => t.title)).toEqual(['Fresh']);
+    const cached = JSON.parse(localStorage.getItem(tasksCacheKey('u1'))!);
+    expect(cached.map((t: { title: string }) => t.title)).toEqual(['Fresh']);
+  });
+
+  it('keeps the cached list and raises no error banner when the fetch fails', async () => {
+    seedCache('u1', [{ id: '1', title: 'Offline copy' }]);
+    table.failNext = true;
+
+    await firstValueFrom(service.loadTasks());
+
+    expect((await firstValueFrom(service.tasks$)).map((t) => t.title)).toEqual(['Offline copy']);
+    expect(await firstValueFrom(service.error$)).toBeNull();
+    expect(await firstValueFrom(service.loading$)).toBe(false);
+  });
+
+  it('write-throughs create / update / delete / reorder to the cache key', async () => {
+    table.seed([
+      mkTask({ id: '1', status: 'todo', position: 1 }),
+      mkTask({ id: '2', status: 'todo', position: 2 }),
+    ]);
+    await firstValueFrom(service.loadTasks());
+
+    const cache = () =>
+      JSON.parse(localStorage.getItem(tasksCacheKey('u1'))!) as Array<{
+        id: string;
+        title: string;
+        status: string;
+        position: number;
+      }>;
+
+    await firstValueFrom(service.createTask({ title: 'C', status: 'todo', priority: 'low' }));
+    expect(cache().map((t) => t.title)).toContain('C');
+
+    await firstValueFrom(service.updateTask('1', { status: 'done' }));
+    expect(cache().find((t) => t.id === '1')!.status).toBe('done');
+
+    await firstValueFrom(service.reorderColumn('todo', ['2', '1']));
+    const reordered = cache();
+    expect(reordered.find((t) => t.id === '2')!.position).toBe(1);
+
+    await firstValueFrom(service.deleteTask('2'));
+    expect(cache().some((t) => t.id === '2')).toBe(false);
+  });
+
+  it('does not read cache written under a different uid', async () => {
+    seedCache('other-user', [{ id: '1', title: 'Someone else' }]);
+    table.seed([mkTask({ id: '9', title: 'Mine', position: 1 })]);
+
+    service.loadTasks().subscribe();
+
+    // uid is 'u1' — the 'other-user' blob must be ignored (no synchronous seed).
+    expect(await firstValueFrom(service.tasks$)).toEqual([]);
+    await new Promise((r) => setTimeout(r));
+    expect((await firstValueFrom(service.tasks$)).map((t) => t.title)).toEqual(['Mine']);
+  });
+
+  it('ignores a corrupt / non-array cache blob and falls through to the network', async () => {
+    localStorage.setItem(tasksCacheKey('u1'), '{"not":"an array"}');
+    table.seed([mkTask({ id: '9', title: 'Server', position: 1 })]);
+
+    service.loadTasks().subscribe();
+    expect(await firstValueFrom(service.tasks$)).toEqual([]); // no bad seed
+
+    await new Promise((r) => setTimeout(r));
+    expect((await firstValueFrom(service.tasks$)).map((t) => t.title)).toEqual(['Server']);
   });
 });
