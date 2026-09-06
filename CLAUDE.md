@@ -75,7 +75,12 @@ All access goes through `SupabaseService` (owns the single `SupabaseClient`).
   to `auth.uid()` in the DB.
 - DB columns are snake_case (`user_id`, `created_at`, `position`); TaskService
   maps rows to the camelCase `Task` interface.
-- Schema: `supabase/migrations/0001_init.sql`. Seed users + tasks:
+- `profiles` table: one row per user (auto-created by `handle_new_user`).
+  `board_name` (nullable) holds the user's custom board title; `null` means "show
+  the localized default". Read/written by `BoardSettingsService`; added by
+  `0002_board_name.sql`.
+- Schema: `supabase/migrations/0001_init.sql`, then
+  `supabase/migrations/0002_board_name.sql`. Seed users + tasks:
   `supabase/seed.sql` (fallback `scripts/create-users.mjs`).
 
 ## File structure to create
@@ -314,8 +319,8 @@ No local server — the app points straight at the hosted Supabase project.
 1. Create a Supabase project; copy the Project URL + publishable/anon key into
    `src/environments/environment.ts` (and `environment.prod.ts` / Vercel env).
 2. In the SQL editor run `supabase/migrations/0001_init.sql`, then
-   `supabase/seed.sql` (imports `alice@example.com` / `alice123` and
-   `bob@example.com` / `bob123`).
+   `supabase/migrations/0002_board_name.sql`, then `supabase/seed.sql` (imports
+   `alice@example.com` / `alice123` and `bob@example.com` / `bob123`).
 3. Auth → Providers: enable Google (needs a Google Cloud OAuth client with
    redirect URI `https://<ref>.supabase.co/auth/v1/callback`).
 4. Auth → URL config: add `http://localhost:4200` and the Vercel domain to the

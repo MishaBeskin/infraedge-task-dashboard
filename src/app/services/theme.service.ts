@@ -17,6 +17,11 @@ export class ThemeService {
     this.apply(!this.isDark());
   }
 
+  /** Set the theme explicitly. No-ops when already in the requested mode. */
+  set(dark: boolean): void {
+    if (dark !== this.isDark()) this.apply(dark);
+  }
+
   private apply(dark: boolean): void {
     this.isDark.set(dark);
     this.doc.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');

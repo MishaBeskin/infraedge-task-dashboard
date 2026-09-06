@@ -13,10 +13,40 @@
 .toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
   padding: 0.875rem 1.75rem;
   background: var(--surface);
+}
+
+// New Task and the filter section sit together at the toolbar's inline-start
+// edge (visual right in RTL); the search box is pushed to the inline-end edge
+// by the auto margin on .search-wrapper. Markup + styling moved here from the
+// header. On mobile the button is hidden and replaced by the .fab below.
+.btn-new-task {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  padding: 0.55rem 1.1rem;
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: var(--brand-hover);
+  }
+}
+
+// Floating action button — mobile only (toggled on at <= $mobile below).
+.fab {
+  display: none;
 }
 
 .filter-section {
@@ -95,6 +125,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  margin-inline-start: auto;
 }
 
 .search-icon {
@@ -199,10 +230,48 @@
     padding: 0.75rem 1rem;
   }
 
+  // The toolbar button gives way to the floating action button.
+  .btn-new-task {
+    display: none;
+  }
+
+  // Circular FAB pinned to the inline-end / block-end corner. z-index sits above
+  // the stacked columns but below the task dialog overlay (z-index: 50), and the
+  // template also guards it with @if so it never floats over an open modal.
+  .fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    inset-block-end: 1.25rem;
+    inset-inline-end: 1.25rem;
+    z-index: 30;
+    width: 56px;
+    height: 56px;
+    border: none;
+    border-radius: 50%;
+    background: var(--brand);
+    color: #fff;
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    transition: background 0.15s;
+
+    &:hover {
+      background: var(--brand-hover);
+    }
+
+    &:active {
+      background: var(--brand-hover);
+    }
+  }
+
   // Search takes its own full-width row above the filter pills.
   .search-wrapper {
     order: 1;
     width: 100%;
+    margin-inline-start: 0;
   }
 
   .search-input,
@@ -226,6 +295,8 @@
     flex: none;
     gap: 1rem;
     padding: 1rem;
+    // Clearance so the fixed FAB never covers the last card's actions.
+    padding-block-end: 5.5rem;
   }
 
   .skeleton-col {

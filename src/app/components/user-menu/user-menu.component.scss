@@ -1,0 +1,205 @@
+@use '../../../styles/breakpoints' as bp;
+
+.user-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+// ── Trigger ────────────────────────────────────────────────────────────
+.user-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  max-width: 220px;
+  padding: 0.3rem 0.5rem;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font-family: inherit;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+
+  &:hover,
+  &.is-open {
+    background: var(--bg);
+    border-color: var(--border);
+  }
+}
+
+.user-menu__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--avatar-bg);
+  color: var(--brand);
+  font-size: 0.78rem;
+  font-weight: 700;
+  flex-shrink: 0;
+
+  &--lg {
+    width: 40px;
+    height: 40px;
+    font-size: 0.85rem;
+  }
+}
+
+.user-menu__identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.user-menu__name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: start;
+}
+
+.user-menu__meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: start;
+}
+
+.user-menu__chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.15s;
+
+  .user-menu__trigger.is-open & {
+    transform: rotate(180deg);
+  }
+}
+
+// ── Panel ──────────────────────────────────────────────────────────────
+.user-menu__panel {
+  position: absolute;
+  inset-block-start: calc(100% + 8px);
+  inset-inline-end: 0;
+  z-index: 20;
+  min-width: 260px;
+  padding: 0.4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+}
+
+.user-menu__header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.6rem;
+}
+
+.user-menu__divider {
+  height: 1px;
+  margin: 0.35rem 0;
+  background: var(--border);
+}
+
+.user-menu__section {
+  padding: 0.15rem 0;
+}
+
+.user-menu__label {
+  display: block;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: start;
+}
+
+.user-menu__row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  text-align: start;
+  cursor: pointer;
+  transition: background 0.12s;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--bg);
+    outline: none;
+  }
+
+  &:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--brand);
+  }
+
+  &.is-active {
+    color: var(--brand);
+    font-weight: 600;
+  }
+}
+
+.user-menu__row-text {
+  flex: 1;
+}
+
+.user-menu__check {
+  flex-shrink: 0;
+  color: var(--brand);
+}
+
+.user-menu__row-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.user-menu__row--logout {
+  color: var(--priority-high);
+
+  .user-menu__row-icon {
+    color: var(--priority-high);
+  }
+
+  &:hover,
+  &:focus-visible {
+    background: color-mix(in srgb, var(--priority-high) 10%, transparent);
+  }
+}
+
+// ── Touch: comfortable tap targets ─────────────────────────────────────
+@media (pointer: coarse) {
+  .user-menu__row {
+    min-height: 44px;
+  }
+}
+
+// ── Tightest phones: collapse the trigger to avatar + chevron; the panel
+//    header still carries the full name + email. ────────────────────────
+@media (max-width: bp.$phone) {
+  .user-menu__trigger .user-menu__identity {
+    display: none;
+  }
+}

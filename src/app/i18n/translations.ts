@@ -77,10 +77,22 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'header.theme.toLight': 'עבור למצב בהיר',
     'header.theme.toDark': 'עבור למצב כהה',
 
+    // User menu (avatar dropdown)
+    'menu.language': 'שפה',
+    'menu.language.he': 'עברית',
+    'menu.language.en': 'English',
+    'menu.theme': 'ערכת נושא',
+    'menu.theme.light': 'בהיר',
+    'menu.theme.dark': 'כהה',
+    'menu.logout': 'התנתק',
+    'menu.open': 'פתח את תפריט המשתמש',
+
     // Board toolbar
     'board.priority': 'עדיפות',
     'board.filter.all': 'הכל',
     'board.search': 'חיפוש משימות...',
+    'board.rename': 'שנה שם ללוח',
+    'board.name.placeholder': 'שם הלוח',
 
     // Statuses
     'status.todo': 'לעשות',
@@ -123,6 +135,8 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 
     // Errors (emitted as keys by services)
     'errors.loadTasks': 'שגיאה בטעינת המשימות',
+    'errors.loadBoardName': 'שגיאה בטעינת שם הלוח',
+    'errors.renameBoard': 'שינוי שם הלוח נכשל',
 
     // Accessibility
     'a11y.switchLang': 'החלף שפה',
@@ -197,10 +211,22 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'header.theme.toLight': 'Switch to light mode',
     'header.theme.toDark': 'Switch to dark mode',
 
+    // User menu (avatar dropdown)
+    'menu.language': 'Language',
+    'menu.language.he': 'עברית',
+    'menu.language.en': 'English',
+    'menu.theme': 'Theme',
+    'menu.theme.light': 'Light',
+    'menu.theme.dark': 'Dark',
+    'menu.logout': 'Log out',
+    'menu.open': 'Open user menu',
+
     // Board toolbar
     'board.priority': 'Priority',
     'board.filter.all': 'All',
     'board.search': 'Search tasks...',
+    'board.rename': 'Rename board',
+    'board.name.placeholder': 'Board name',
 
     // Statuses
     'status.todo': 'To do',
@@ -243,6 +269,8 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 
     // Errors (emitted as keys by services)
     'errors.loadTasks': 'Failed to load tasks',
+    'errors.loadBoardName': 'Failed to load the board name',
+    'errors.renameBoard': 'Failed to rename the board',
 
     // Accessibility
     'a11y.switchLang': 'Switch language',

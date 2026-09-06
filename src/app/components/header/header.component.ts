@@ -3,45 +3,81 @@ import {
   Input,
   Output,
   EventEmitter,
+  ElementRef,
   inject,
+  signal,
+  computed,
+  effect,
+  viewChild,
   ChangeDetectionStrategy,
 } from '@angular/core';
-import { Router } from '@angular/router';
-import { AuthService } from '../../services/auth.service';
-import { ThemeService } from '../../services/theme.service';
 import { I18nService } from '../../services/i18n.service';
-import { LanguageToggleComponent } from '../language-toggle/language-toggle.component';
+import { UserMenuComponent } from '../user-menu/user-menu.component';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [LanguageToggleComponent],
+  imports: [UserMenuComponent],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HeaderComponent {
   @Input() taskCount = 0;
-  @Output() addTask = new EventEmitter<void>();
+  /** Custom board name; `null` falls back to the localized default title. */
+  @Input() boardName: string | null = null;
+  @Output() renameBoard = new EventEmitter<string>();
 
-  private authService = inject(AuthService);
-  private router = inject(Router);
-  protected themeService = inject(ThemeService);
   protected i18n = inject(I18nService);
 
-  get userInitials(): string {
-    const user = this.authService.getCurrentUser();
-    if (!user) return '';
-    return user.name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase();
+  /** true while the inline title editor is open. */
+  protected readonly editing = signal(false);
+  /** Working copy of the title while editing. */
+  protected readonly draft = signal('');
+  /** Input width tracks the draft length so the field doesn't jump. */
+  protected readonly draftWidthCh = computed(() => Math.max(this.draft().length, 6) + 2);
+
+  private readonly titleInput = viewChild<ElementRef<HTMLInputElement>>('titleInput');
+  private readonly titleButton = viewChild<ElementRef<HTMLButtonElement>>('titleButton');
+
+  constructor() {
+    // Focus + select the field as soon as it renders (signal viewChild updates
+    // once the @if branch is in the DOM, which re-runs this effect).
+    effect(() => {
+      if (this.editing()) {
+        const el = this.titleInput()?.nativeElement;
+        if (el) {
+          el.focus();
+          el.select();
+        }
+      }
+    });
   }
 
-  async logout() {
-    await this.authService.signOut();
-    this.router.navigate(['/login']);
+  /** The title actually shown: custom name, or the localized default. */
+  get displayTitle(): string {
+    return this.boardName ?? this.i18n.t('header.title');
+  }
+
+  startEdit(): void {
+    this.draft.set(this.displayTitle);
+    this.editing.set(true);
+  }
+
+  /** Enter or blur. Emits only when the trimmed value differs from what's shown. */
+  commit(): void {
+    if (!this.editing()) return;
+    this.editing.set(false);
+    const next = this.draft().trim();
+    if (next !== this.displayTitle) {
+      this.renameBoard.emit(next);
+    }
+  }
+
+  /** Escape. Discards the draft and returns focus to the trigger button. */
+  cancel(): void {
+    if (!this.editing()) return;
+    this.editing.set(false);
+    setTimeout(() => this.titleButton()?.nativeElement.focus(), 0);
   }
 }

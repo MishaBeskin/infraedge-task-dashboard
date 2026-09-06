@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { BehaviorSubject, of } from 'rxjs';
 import { BoardComponent } from './board.component';
 import { TaskService } from '../../services/task.service';
+import { BoardSettingsService } from '../../services/board-settings.service';
 import { Task, Status } from '../../models/task.model';
 
 const mk = (
@@ -29,14 +30,25 @@ class FakeTaskService {
   reorderColumn = vi.fn((_status: Status, _orderedIds: string[]) => of(undefined));
 }
 
+class FakeBoardSettingsService {
+  boardName$ = new BehaviorSubject<string | null>(null);
+  error$ = new BehaviorSubject<string | null>(null);
+  loadBoardName = vi.fn(() => of(undefined));
+  renameBoard = vi.fn((_name: string) => of(undefined));
+}
+
 function setup(tasks: Task[]) {
   const svc = new FakeTaskService();
+  const boardSettings = new FakeBoardSettingsService();
   svc.tasks$.next(tasks);
   TestBed.configureTestingModule({
-    providers: [{ provide: TaskService, useValue: svc }],
+    providers: [
+      { provide: TaskService, useValue: svc },
+      { provide: BoardSettingsService, useValue: boardSettings },
+    ],
   });
   const fixture = TestBed.createComponent(BoardComponent);
-  return { svc, comp: fixture.componentInstance, fixture };
+  return { svc, boardSettings, comp: fixture.componentInstance, fixture };
 }
 
 describe('BoardComponent', () => {

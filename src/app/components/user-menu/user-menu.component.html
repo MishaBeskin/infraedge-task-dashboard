@@ -1,0 +1,202 @@
+<div class="user-menu">
+  <button
+    #trigger
+    type="button"
+    class="user-menu__trigger"
+    [class.is-open]="open()"
+    aria-haspopup="menu"
+    [attr.aria-expanded]="open()"
+    [attr.aria-label]="i18n.t('menu.open')"
+    (click)="toggle()"
+  >
+    <span class="user-menu__avatar" aria-hidden="true">{{ userInitials }}</span>
+    <span class="user-menu__identity">
+      <span class="user-menu__name">{{ user?.name }}</span>
+      <span class="user-menu__meta">{{ user?.email }}</span>
+    </span>
+    <svg
+      class="user-menu__chevron"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  </button>
+
+  @if (open()) {
+    <div
+      #panel
+      class="user-menu__panel"
+      role="menu"
+      [attr.aria-label]="i18n.t('menu.open')"
+      (keydown)="onPanelKeydown($event)"
+    >
+      <div class="user-menu__header">
+        <span class="user-menu__avatar user-menu__avatar--lg" aria-hidden="true">{{
+          userInitials
+        }}</span>
+        <span class="user-menu__identity">
+          <span class="user-menu__name">{{ user?.name }}</span>
+          <span class="user-menu__meta">{{ user?.email }}</span>
+        </span>
+      </div>
+
+      <div class="user-menu__divider" role="separator"></div>
+
+      <div class="user-menu__section" role="group" aria-labelledby="user-menu-lang-label">
+        <span class="user-menu__label" id="user-menu-lang-label">{{
+          i18n.t('menu.language')
+        }}</span>
+        <button
+          type="button"
+          class="user-menu__row"
+          role="menuitemradio"
+          [attr.aria-checked]="i18n.lang() === 'he'"
+          [class.is-active]="i18n.lang() === 'he'"
+          (click)="selectLang('he')"
+        >
+          <span class="user-menu__row-text">{{ i18n.t('menu.language.he') }}</span>
+          @if (i18n.lang() === 'he') {
+            <svg
+              class="user-menu__check"
+              aria-hidden="true"
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          }
+        </button>
+        <button
+          type="button"
+          class="user-menu__row"
+          role="menuitemradio"
+          [attr.aria-checked]="i18n.lang() === 'en'"
+          [class.is-active]="i18n.lang() === 'en'"
+          (click)="selectLang('en')"
+        >
+          <span class="user-menu__row-text">{{ i18n.t('menu.language.en') }}</span>
+          @if (i18n.lang() === 'en') {
+            <svg
+              class="user-menu__check"
+              aria-hidden="true"
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          }
+        </button>
+      </div>
+
+      <div class="user-menu__section" role="group" aria-labelledby="user-menu-theme-label">
+        <span class="user-menu__label" id="user-menu-theme-label">{{ i18n.t('menu.theme') }}</span>
+        <button
+          type="button"
+          class="user-menu__row"
+          role="menuitemradio"
+          [attr.aria-checked]="!themeService.isDark()"
+          [class.is-active]="!themeService.isDark()"
+          (click)="selectTheme(false)"
+        >
+          <span class="user-menu__row-text">{{ i18n.t('menu.theme.light') }}</span>
+          @if (!themeService.isDark()) {
+            <svg
+              class="user-menu__check"
+              aria-hidden="true"
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          }
+        </button>
+        <button
+          type="button"
+          class="user-menu__row"
+          role="menuitemradio"
+          [attr.aria-checked]="themeService.isDark()"
+          [class.is-active]="themeService.isDark()"
+          (click)="selectTheme(true)"
+        >
+          <span class="user-menu__row-text">{{ i18n.t('menu.theme.dark') }}</span>
+          @if (themeService.isDark()) {
+            <svg
+              class="user-menu__check"
+              aria-hidden="true"
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          }
+        </button>
+      </div>
+
+      <div class="user-menu__divider" role="separator"></div>
+
+      <button
+        type="button"
+        class="user-menu__row user-menu__row--logout"
+        role="menuitem"
+        (click)="logout()"
+      >
+        <svg
+          class="user-menu__row-icon"
+          aria-hidden="true"
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          [style.transform]="i18n.isRtl() ? 'scaleX(-1)' : null"
+        >
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+        <span class="user-menu__row-text">{{ i18n.t('menu.logout') }}</span>
+      </button>
+    </div>
+  }
+</div>

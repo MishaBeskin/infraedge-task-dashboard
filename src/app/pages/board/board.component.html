@@ -1,7 +1,21 @@
-<app-header [taskCount]="filteredCount()" (addTask)="openDefaultDialog()" />
+<app-header
+  [taskCount]="filteredCount()"
+  [boardName]="boardName()"
+  (renameBoard)="onRenameBoard($event)"
+/>
 
 <div class="toolbar">
-  <!-- RIGHT in RTL: filter label + pills -->
+  <!-- INLINE-START (visual right in RTL): create a task -->
+  <button
+    class="btn-new-task"
+    type="button"
+    (click)="openDefaultDialog()"
+    [attr.aria-label]="i18n.t('header.newTask')"
+  >
+    {{ i18n.t('header.newTask') }}
+  </button>
+
+  <!-- CENTER: filter label + pills -->
   <div class="filter-section">
     <span class="filter-label">{{ i18n.t('board.priority') }}</span>
     <div class="priority-pills">
@@ -36,7 +50,7 @@
     </div>
   </div>
 
-  <!-- LEFT in RTL: search -->
+  <!-- INLINE-END (visual left in RTL): search -->
   <div class="search-wrapper">
     <svg
       class="search-icon"
@@ -105,4 +119,17 @@
     (closed)="closeEditDialog()"
     (taskSaved)="closeEditDialog()"
   />
+}
+
+<!-- Mobile-only floating action button. Hidden while a dialog is open so it
+     can't bleed through the modal's stacking context. -->
+@if (!showDialog && !showEditDialog) {
+  <button
+    class="fab"
+    type="button"
+    (click)="openDefaultDialog()"
+    [attr.aria-label]="i18n.t('header.newTask')"
+  >
+    <span aria-hidden="true">+</span>
+  </button>
 }

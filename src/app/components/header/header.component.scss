@@ -42,25 +42,6 @@
   color: var(--brand);
 }
 
-.btn-logout,
-.btn-theme {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  border-radius: 6px;
-  transition: color 0.15s;
-
-  &:hover {
-    color: var(--text-primary);
-  }
-}
-
 .header-divider {
   width: 1px;
   height: 52px;
@@ -77,6 +58,8 @@
 }
 
 .board-title {
+  display: flex;
+  align-items: center;
   font-size: 1.6rem;
   font-weight: 800;
   color: var(--text-primary);
@@ -85,51 +68,58 @@
   text-align: start;
 }
 
+// Trigger: looks exactly like the heading text until hover/focus.
+.board-title__btn {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-align: start;
+  background: none;
+  border: none;
+  padding: 0.15rem 0.35rem;
+  margin-inline-start: -0.35rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: var(--bg);
+  }
+
+  &:focus-visible {
+    outline: none;
+    background: var(--bg);
+    box-shadow: 0 0 0 2px var(--brand);
+  }
+}
+
+// Editor: same type metrics so the title doesn't jump when swapping in.
+.board-title__input {
+  font: inherit;
+  color: var(--text-primary);
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-align: start;
+  padding: 0.15rem 0.35rem;
+  margin-inline-start: -0.35rem;
+  min-inline-size: 6ch;
+  max-inline-size: 62ch;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  outline: none;
+
+  &:focus {
+    border-color: var(--brand);
+  }
+}
+
 .board-subtitle {
   font-size: 0.78rem;
   color: var(--text-muted);
   margin: 0;
   text-align: start;
-}
-
-.avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: var(--avatar-bg);
-  color: var(--brand);
-  font-size: 0.82rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.btn-new-task {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.55rem 1.1rem;
-  background: var(--brand);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius);
-  font-size: 0.9rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.15s;
-
-  &:hover {
-    background: var(--brand-hover);
-  }
-}
-
-.btn-new-task__icon {
-  display: none;
-  font-size: 1.4rem;
-  line-height: 1;
 }
 
 // ── Small screens: keep the 64px bar from overflowing at 360px ──────
@@ -166,22 +156,6 @@
   .board-subtitle {
     display: none;
   }
-
-  // "New task" collapses to an icon-only square (aria-label keeps it labelled).
-  .btn-new-task {
-    padding: 0;
-    width: 40px;
-    height: 40px;
-    justify-content: center;
-  }
-
-  .btn-new-task__text {
-    display: none;
-  }
-
-  .btn-new-task__icon {
-    display: block;
-  }
 }
 
 // Drop the title block entirely on the tightest phones — the logo is enough.
@@ -189,14 +163,5 @@
   .header-divider,
   .title-block {
     display: none;
-  }
-}
-
-// Touch: full-size hit areas for the icon buttons.
-@media (pointer: coarse) {
-  .btn-logout,
-  .btn-theme {
-    width: 40px;
-    height: 40px;
   }
 }

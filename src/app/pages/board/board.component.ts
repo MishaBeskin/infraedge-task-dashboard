@@ -11,6 +11,7 @@ import { AsyncPipe } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Task, Status } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
+import { BoardSettingsService } from '../../services/board-settings.service';
 import { I18nService } from '../../services/i18n.service';
 import { HeaderComponent } from '../../components/header/header.component';
 import {
@@ -29,10 +30,14 @@ import { TaskDialogComponent } from '../../components/task-dialog/task-dialog.co
 })
 export class BoardComponent implements OnInit {
   private taskService = inject(TaskService);
+  private boardSettings = inject(BoardSettingsService);
   protected i18n = inject(I18nService);
 
   loading$ = this.taskService.loading$;
   error$ = this.taskService.error$;
+
+  /** Custom board title (null = show the localized default in the header). */
+  protected boardName = toSignal(this.boardSettings.boardName$, { initialValue: null });
 
   priorityFilter = signal<'all' | 'high' | 'medium' | 'low'>('all');
   searchQuery = signal<string>('');
@@ -91,6 +96,11 @@ export class BoardComponent implements OnInit {
 
   ngOnInit() {
     this.taskService.loadTasks().subscribe();
+    this.boardSettings.loadBoardName().subscribe();
+  }
+
+  onRenameBoard(name: string) {
+    this.boardSettings.renameBoard(name).subscribe({ error: () => undefined });
   }
 
   setPriorityFilter(f: 'all' | 'high' | 'medium' | 'low') {
