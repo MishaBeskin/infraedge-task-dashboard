@@ -1,0 +1,154 @@
+@use '../../../styles/breakpoints' as bp;
+
+.team-switcher {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+// ── Trigger (caret) ──────────────────────────────────────────────────
+.team-switcher__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-inline-start: 0.1rem;
+  padding: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+
+  &:hover,
+  &.is-open {
+    background: var(--bg);
+    border-color: var(--border);
+    color: var(--text-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+  }
+}
+
+.team-switcher__chevron {
+  transition: transform 0.15s;
+
+  .team-switcher__trigger.is-open & {
+    transform: rotate(180deg);
+  }
+}
+
+// ── Panel ────────────────────────────────────────────────────────────
+.team-switcher__panel {
+  position: absolute;
+  inset-block-start: calc(100% + 8px);
+  inset-inline-start: 0;
+  z-index: 20;
+  min-width: 280px;
+  padding: 0.4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--elevation-menu);
+}
+
+.team-switcher__label {
+  display: block;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: start;
+}
+
+.team-switcher__divider {
+  height: 1px;
+  margin: 0.35rem 0;
+  background: var(--border);
+}
+
+.team-switcher__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-align: start;
+  cursor: pointer;
+  transition: background 0.12s;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--bg);
+    outline: none;
+  }
+
+  &:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--brand);
+  }
+
+  &.is-active {
+    color: var(--brand);
+  }
+
+  &--new {
+    color: var(--brand);
+    font-weight: 600;
+  }
+}
+
+.team-switcher__row-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-switcher__role {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.team-switcher__check {
+  flex-shrink: 0;
+  color: var(--brand);
+}
+
+.team-switcher__check-spacer {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+@media (pointer: coarse) {
+  .team-switcher__trigger {
+    width: 34px;
+    height: 34px;
+  }
+
+  .team-switcher__row {
+    min-height: 44px;
+  }
+}

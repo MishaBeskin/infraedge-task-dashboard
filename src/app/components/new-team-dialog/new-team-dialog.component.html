@@ -1,0 +1,50 @@
+<div class="overlay" (click)="closed.emit()">
+  <div
+    class="modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="new-team-title"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="modal-header">
+      <h3 id="new-team-title" class="modal-title">{{ i18n.t('team.create.title') }}</h3>
+      <button
+        type="button"
+        class="close-btn"
+        (click)="closed.emit()"
+        [attr.aria-label]="i18n.t('dialog.close')"
+      >
+        ✕
+      </button>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="field">
+        <label for="new-team-name">{{ i18n.t('team.create.name') }}</label>
+        <input
+          id="new-team-name"
+          type="text"
+          formControlName="name"
+          [placeholder]="i18n.t('team.create.name.placeholder')"
+          [class.field-error]="form.controls.name.invalid && form.controls.name.touched"
+        />
+        @if (form.controls.name.touched && form.controls.name.hasError('required')) {
+          <span class="field-error-msg">{{ i18n.t('team.create.name.required') }}</span>
+        }
+      </div>
+
+      @if (error()) {
+        <p class="form-error" role="alert">{{ i18n.t(error()!) }}</p>
+      }
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="closed.emit()">
+          {{ i18n.t('dialog.cancel') }}
+        </button>
+        <button type="submit" class="btn-submit" [disabled]="submitting()">
+          {{ submitting() ? i18n.t('team.create.submitting') : i18n.t('team.create.submit') }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

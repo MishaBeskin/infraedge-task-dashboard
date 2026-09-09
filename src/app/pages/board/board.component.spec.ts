@@ -1,9 +1,11 @@
 import { TestBed } from '@angular/core/testing';
+import { computed, signal } from '@angular/core';
 import { BehaviorSubject, of } from 'rxjs';
 import { BoardComponent } from './board.component';
 import { TaskService } from '../../services/task.service';
-import { BoardSettingsService } from '../../services/board-settings.service';
+import { TeamService } from '../../services/team.service';
 import { Task, Status } from '../../models/task.model';
+import { Team } from '../../models/team.model';
 
 const mk = (
   id: string,
@@ -17,6 +19,7 @@ const mk = (
   status,
   priority,
   position,
+  teamId: 't1',
   createdAt: 't0',
   updatedAt: 't0',
 });
@@ -30,25 +33,30 @@ class FakeTaskService {
   reorderColumn = vi.fn((_status: Status, _orderedIds: string[]) => of(undefined));
 }
 
-class FakeBoardSettingsService {
-  boardName$ = new BehaviorSubject<string | null>(null);
+class FakeTeamService {
+  teams = signal<Team[]>([{ id: 't1', name: 'Alpha', role: 'owner' }]);
+  activeTeamId = signal<string | null>('t1');
+  activeTeam = computed(() => this.teams().find((t) => t.id === this.activeTeamId()) ?? null);
+  teamsLoaded = signal(true);
   error$ = new BehaviorSubject<string | null>(null);
-  loadBoardName = vi.fn(() => of(undefined));
-  renameBoard = vi.fn((_name: string) => of(undefined));
+  loadTeams = vi.fn(() => of(undefined));
+  renameTeam = vi.fn(() => of(undefined));
+  createTeam = vi.fn(() => of({ id: 'new', name: 'New', role: 'owner' as const }));
+  setActiveTeam = vi.fn((id: string) => this.activeTeamId.set(id));
 }
 
 function setup(tasks: Task[]) {
   const svc = new FakeTaskService();
-  const boardSettings = new FakeBoardSettingsService();
+  const team = new FakeTeamService();
   svc.tasks$.next(tasks);
   TestBed.configureTestingModule({
     providers: [
       { provide: TaskService, useValue: svc },
-      { provide: BoardSettingsService, useValue: boardSettings },
+      { provide: TeamService, useValue: team },
     ],
   });
   const fixture = TestBed.createComponent(BoardComponent);
-  return { svc, boardSettings, comp: fixture.componentInstance, fixture };
+  return { svc, team, comp: fixture.componentInstance, fixture };
 }
 
 describe('BoardComponent', () => {
@@ -89,7 +97,6 @@ describe('BoardComponent', () => {
     const { comp, svc } = setup(tasks);
     expect(comp.todoTasks().map((t) => t.id)).toEqual(['1', '2', '3']);
 
-    // Same array order, only positions rewritten — as reorderColumn does.
     svc.tasks$.next([
       { ...tasks[0], position: 3 },
       { ...tasks[1], position: 1 },
@@ -139,7 +146,6 @@ describe('BoardComponent', () => {
       mk('3', 'c', 'todo', 'high', 3),
     ]);
 
-    // Drop card 3 into the top slot of its own column.
     comp.onTaskDropped({ taskId: '3', newStatus: 'todo', targetIndex: 0 });
 
     expect(svc.reorderColumn).toHaveBeenCalledWith('todo', ['3', '1', '2']);
@@ -164,7 +170,6 @@ describe('BoardComponent', () => {
       mk('3', 'c', 'todo', 'high', 3),
     ]);
 
-    // Dropping card 3 back at the end of its own column.
     comp.onTaskDropped({ taskId: '3', newStatus: 'todo', targetIndex: 3 });
 
     expect(svc.reorderColumn).not.toHaveBeenCalled();
@@ -182,16 +187,47 @@ describe('BoardComponent', () => {
     const { svc, comp } = setup([
       mk('a', 'a', 'todo', 'high', 1),
       mk('x', 'x', 'done', 'high', 1),
-      mk('z', 'z', 'done', 'low', 2), // hidden by the priority pill
+      mk('z', 'z', 'done', 'low', 2),
       mk('y', 'y', 'done', 'high', 3),
     ]);
 
-    comp.setPriorityFilter('high'); // done column now renders [x, y]
-
-    // Drop before the visible card at filtered index 1 (that is 'y'). The hidden
-    // 'z' must stay ahead of 'y' in the persisted order.
+    comp.setPriorityFilter('high');
     comp.onTaskDropped({ taskId: 'a', newStatus: 'done', targetIndex: 1 });
 
     expect(svc.reorderColumn).toHaveBeenCalledWith('done', ['x', 'z', 'a', 'y']);
+  });
+
+  // ── Teams ─────────────────────────────────────────────────────────
+
+  it('loads teams on init', () => {
+    const { team, fixture } = setup([]);
+    fixture.detectChanges();
+    expect(team.loadTeams).toHaveBeenCalled();
+  });
+
+  it('reloads tasks when the active team changes', () => {
+    const { svc, team, fixture } = setup([]);
+    fixture.detectChanges();
+    const before = svc.loadTasks.mock.calls.length;
+
+    team.activeTeamId.set('t2');
+    fixture.detectChanges();
+
+    expect(svc.loadTasks.mock.calls.length).toBeGreaterThan(before);
+  });
+
+  it('derives boardName and canRename from the active team', () => {
+    const { comp, team } = setup([]);
+    expect(comp['boardName']()).toBe('Alpha');
+    expect(comp['canRename']()).toBe(true);
+
+    team.teams.set([{ id: 't1', name: 'Alpha', role: 'member' }]);
+    expect(comp['canRename']()).toBe(false);
+  });
+
+  it('routes a rename to TeamService.renameTeam for the active team', () => {
+    const { comp, team } = setup([]);
+    comp.onRenameBoard('Renamed');
+    expect(team.renameTeam).toHaveBeenCalledWith('t1', 'Renamed');
   });
 });

@@ -145,10 +145,29 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'dialog.submitting.edit': 'שומר...',
     'dialog.error.save': 'לא ניתן לשמור את המשימה. נסו שוב.',
 
+    // Teams
+    'team.switch': 'החלף צוות',
+    'team.switcher.current': 'צוות נוכחי',
+    'team.role.owner': 'בעלים',
+    'team.role.member': 'חבר',
+    'team.new': '＋ צוות חדש',
+    'team.manage': 'ניהול צוות',
+    'team.create.title': 'צוות חדש',
+    'team.create.name': 'שם הצוות',
+    'team.create.name.placeholder': 'למשל: שיווק',
+    'team.create.name.required': 'יש להזין שם צוות',
+    'team.create.submit': 'צור צוות',
+    'team.create.submitting': 'יוצר...',
+    'team.create.error': 'יצירת הצוות נכשלה. נסו שוב.',
+    'teamPanel.invite.email.alreadyInvited': 'כבר נשלחה הזמנה לכתובת הזו.',
+    'invite.wrongAccount': 'ההזמנה נשלחה לכתובת דוא"ל אחרת',
+
     // Errors (emitted as keys by services)
     'errors.loadTasks': 'שגיאה בטעינת המשימות',
-    'errors.loadBoardName': 'שגיאה בטעינת שם הלוח',
-    'errors.renameBoard': 'שינוי שם הלוח נכשל',
+    'errors.loadTeams': 'שגיאה בטעינת הצוותים',
+    'errors.switchTeam': 'לא ניתן להחליף צוות',
+    'errors.renameTeam': 'שינוי שם הצוות נכשל',
+    'errors.lastTeam': 'לא ניתן לעזוב את הצוות האחרון שלך',
 
     // Accessibility
     'a11y.switchLang': 'החלף שפה',
@@ -291,10 +310,29 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'dialog.submitting.edit': 'Saving...',
     'dialog.error.save': "Couldn't save the task. Please try again.",
 
+    // Teams
+    'team.switch': 'Switch team',
+    'team.switcher.current': 'Current team',
+    'team.role.owner': 'Owner',
+    'team.role.member': 'Member',
+    'team.new': '＋ New team',
+    'team.manage': 'Manage team',
+    'team.create.title': 'New team',
+    'team.create.name': 'Team name',
+    'team.create.name.placeholder': 'e.g. Marketing',
+    'team.create.name.required': 'Please enter a team name',
+    'team.create.submit': 'Create team',
+    'team.create.submitting': 'Creating...',
+    'team.create.error': "Couldn't create the team. Please try again.",
+    'teamPanel.invite.email.alreadyInvited': 'That address already has a pending invitation.',
+    'invite.wrongAccount': 'This invitation was sent to a different email address',
+
     // Errors (emitted as keys by services)
     'errors.loadTasks': 'Failed to load tasks',
-    'errors.loadBoardName': 'Failed to load the board name',
-    'errors.renameBoard': 'Failed to rename the board',
+    'errors.loadTeams': 'Failed to load teams',
+    'errors.switchTeam': 'Could not switch team',
+    'errors.renameTeam': 'Failed to rename the team',
+    'errors.lastTeam': "You can't leave your last team",
 
     // Accessibility
     'a11y.switchLang': 'Switch language',

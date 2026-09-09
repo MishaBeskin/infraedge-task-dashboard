@@ -9,6 +9,7 @@ const mk = (id: string): Task => ({
   status: 'todo',
   priority: 'medium',
   position: Number(id),
+  teamId: 't1',
   createdAt: 't0',
   updatedAt: 't0',
 });

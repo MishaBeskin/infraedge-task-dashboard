@@ -14,6 +14,10 @@ export interface Task {
   description?: string;
   /** Optional due date, ISO `YYYY-MM-DD` (date only, no time). */
   dueDate?: string;
+  /** The team (== board) this task belongs to. */
+  teamId: string;
+  /** Team member the task is assigned to, or null/undefined for unassigned. */
+  assigneeId?: string | null;
   /** Sort order within a status column. */
   position: number;
   createdAt: string;
@@ -21,15 +25,20 @@ export interface Task {
 }
 
 /** Fields the client supplies when creating a task. `user_id` is set by the
- *  database (default auth.uid()); `position` is assigned by TaskService. */
+ *  database (default auth.uid()); `position` and `team_id` are supplied by
+ *  TaskService (team_id from the active team). */
 export type NewTask = Pick<Task, 'title' | 'status' | 'priority'> & {
   description?: string;
   dueDate?: string;
+  assigneeId?: string | null;
 };
 
 /** Fields the client may change on an existing task. */
 export type TaskPatch = Partial<
-  Pick<Task, 'title' | 'description' | 'status' | 'priority' | 'position' | 'dueDate'>
+  Pick<
+    Task,
+    'title' | 'description' | 'status' | 'priority' | 'position' | 'dueDate' | 'assigneeId'
+  >
 >;
 
 export type Priority = Task['priority'];

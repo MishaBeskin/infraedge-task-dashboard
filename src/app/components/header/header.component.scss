@@ -94,6 +94,16 @@
   }
 }
 
+// Member view: identical type metrics, no affordance.
+.board-title__static {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-align: start;
+  padding: 0.15rem 0;
+}
+
 // Editor: same type metrics so the title doesn't jump when swapping in.
 .board-title__input {
   font: inherit;
@@ -158,10 +168,23 @@
   }
 }
 
-// Drop the title block entirely on the tightest phones — the logo is enough.
+// Tightest phones: drop the divider, keep a compact switcher chip where the
+// title was (team name clipped to ~12ch + the caret). Rename is unavailable
+// here (the editable button collapses to the same clipped chip).
 @media (max-width: bp.$phone) {
-  .header-divider,
-  .title-block {
+  .header-divider {
     display: none;
+  }
+
+  .board-title {
+    font-size: 1rem;
+  }
+
+  .board-title__btn,
+  .board-title__static {
+    max-inline-size: 12ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

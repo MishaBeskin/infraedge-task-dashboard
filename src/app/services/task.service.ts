@@ -4,6 +4,7 @@ import { catchError, map, tap } from 'rxjs/operators';
 import { Task, NewTask, TaskPatch, Status, Priority } from '../models/task.model';
 import { SupabaseService } from './supabase.service';
 import { AuthService } from './auth.service';
+import { TeamService } from './team.service';
 import { readCacheRaw, tasksCacheKey, writeCache } from './cache.util';
 
 interface TaskRow {
@@ -13,6 +14,8 @@ interface TaskRow {
   priority: Priority;
   description: string | null;
   due_date: string | null;
+  team_id: string;
+  assignee_id: string | null;
   position: number;
   created_at: string;
   updated_at: string;
@@ -26,6 +29,8 @@ const fromRow = (r: TaskRow): Task => ({
   priority: r.priority,
   description: r.description ?? undefined,
   dueDate: r.due_date ?? undefined,
+  teamId: r.team_id,
+  assigneeId: r.assignee_id,
   position: r.position,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -39,6 +44,7 @@ const toRow = (patch: TaskPatch): Record<string, unknown> => {
   if (patch.position !== undefined) row['position'] = patch.position;
   if ('description' in patch) row['description'] = patch.description ?? null;
   if ('dueDate' in patch) row['due_date'] = patch.dueDate ?? null;
+  if ('assigneeId' in patch) row['assignee_id'] = patch.assigneeId ?? null;
   return row;
 };
 
@@ -46,6 +52,7 @@ const toRow = (patch: TaskPatch): Record<string, unknown> => {
 export class TaskService {
   private supabase = inject(SupabaseService).client;
   private auth = inject(AuthService);
+  private teamService = inject(TeamService);
 
   private tasksSubject = new BehaviorSubject<Task[]>([]);
   private loadingSubject = new BehaviorSubject<boolean>(false);
@@ -66,21 +73,23 @@ export class TaskService {
   revalidating$ = this.revalidatingSubject.asObservable();
   error$ = this.errorSubject.asObservable();
 
-  /** Emit a new task list AND write it through to the per-user localStorage
-   *  cache, so the cache always mirrors the live list — optimistic states and
-   *  reverts included. */
+  /** Emit a new task list AND write it through to the per-user, per-team
+   *  localStorage cache, so the cache always mirrors the live list — optimistic
+   *  states and reverts included. */
   private setTasks(tasks: Task[]): void {
     this.tasksSubject.next(tasks);
     const uid = this.auth.getCurrentUser()?.id;
-    if (uid) writeCache(tasksCacheKey(uid), tasks);
+    const teamId = this.teamService.activeTeamId();
+    if (uid && teamId) writeCache(tasksCacheKey(uid, teamId), tasks);
   }
 
-  /** Last-known task list for the signed-in user, or null when there's no uid,
-   *  no cache, or the blob is missing/corrupt/not a Task[]. */
+  /** Last-known task list for the signed-in user's active team, or null when
+   *  there's no uid / no active team / no cache / corrupt blob. */
   private readCachedTasks(): Task[] | null {
     const uid = this.auth.getCurrentUser()?.id;
-    if (!uid) return null;
-    const raw = readCacheRaw(tasksCacheKey(uid));
+    const teamId = this.teamService.activeTeamId();
+    if (!uid || !teamId) return null;
+    const raw = readCacheRaw(tasksCacheKey(uid, teamId));
     if (!raw) return null;
     try {
       const parsed: unknown = JSON.parse(raw);
@@ -98,9 +107,18 @@ export class TaskService {
     }
   }
 
-  /** Loads every task the signed-in user owns. RLS scopes the query on the
-   *  server, so no user id is passed. */
+  /** Loads every task in the active team. RLS also scopes the query on the
+   *  server (team membership); the explicit `.eq('team_id', …)` keeps it
+   *  unambiguous. No-ops with an empty list when no team is active. */
   loadTasks(): Observable<void> {
+    const teamId = this.teamService.activeTeamId();
+    if (!teamId) {
+      this.tasksSubject.next([]);
+      this.loadingSubject.next(false);
+      this.revalidatingSubject.next(false);
+      return of(undefined);
+    }
+
     // Stale-while-revalidate: if a cached list exists, paint it synchronously and
     // skip the skeleton — the fetch below still runs and overwrites it. The raw
     // `next` (not setTasks) avoids re-writing the cache with what we just read.
@@ -273,9 +291,11 @@ export class TaskService {
   // ── Supabase calls ────────────────────────────────────────────────
 
   private async fetchTasks(): Promise<TaskRow[]> {
+    const teamId = this.teamService.activeTeamId();
     const { data, error } = await this.supabase
       .from('tasks')
       .select('*')
+      .eq('team_id', teamId)
       .order('position', { ascending: true })
       .order('created_at', { ascending: true });
     if (error) throw error;
@@ -291,6 +311,8 @@ export class TaskService {
         priority: input.priority,
         description: input.description ?? null,
         due_date: input.dueDate ?? null,
+        assignee_id: input.assigneeId ?? null,
+        team_id: this.teamService.activeTeamId(),
         position,
       })
       .select()

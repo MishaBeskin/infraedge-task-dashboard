@@ -8,7 +8,7 @@
 
     <div class="header-divider"></div>
 
-    <!-- Title — left of divider. Single page-level <h1> wraps both edit states. -->
+    <!-- Title — left of divider. Single page-level <h1> wraps every state. -->
     <div class="title-block">
       <h1 class="board-title">
         @if (editing()) {
@@ -26,7 +26,7 @@
             (keydown.escape)="cancel()"
             (blur)="commit()"
           />
-        } @else {
+        } @else if (canRename) {
           <button
             #titleButton
             type="button"
@@ -36,7 +36,15 @@
           >
             {{ displayTitle }}
           </button>
+        } @else {
+          <span class="board-title__static">{{ displayTitle }}</span>
         }
+        <app-team-switcher
+          [teams]="teams"
+          [activeTeamId]="activeTeamId"
+          (switchTeam)="switchTeam.emit($event)"
+          (openCreate)="openCreateTeam.emit()"
+        />
       </h1>
       <p class="board-subtitle">{{ taskCount }} {{ i18n.t('header.subtitle') }}</p>
     </div>
@@ -44,6 +52,6 @@
 
   <!-- LEFT: user menu (last in DOM = left in RTL) -->
   <div class="header-left">
-    <app-user-menu />
+    <app-user-menu (openTeamPanel)="openTeamPanel.emit()" />
   </div>
 </header>

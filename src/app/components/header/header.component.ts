@@ -12,21 +12,31 @@ import {
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { I18nService } from '../../services/i18n.service';
+import { Team } from '../../models/team.model';
 import { UserMenuComponent } from '../user-menu/user-menu.component';
+import { TeamSwitcherComponent } from '../team-switcher/team-switcher.component';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [UserMenuComponent],
+  imports: [UserMenuComponent, TeamSwitcherComponent],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HeaderComponent {
   @Input() taskCount = 0;
-  /** Custom board name; `null` falls back to the localized default title. */
+  /** Board name == active team name; `null` while teams load. */
   @Input() boardName: string | null = null;
+  /** Only a team owner may rename the board. */
+  @Input() canRename = false;
+  @Input() teams: Team[] = [];
+  @Input() activeTeamId: string | null = null;
+
   @Output() renameBoard = new EventEmitter<string>();
+  @Output() switchTeam = new EventEmitter<string>();
+  @Output() openCreateTeam = new EventEmitter<void>();
+  @Output() openTeamPanel = new EventEmitter<void>();
 
   protected i18n = inject(I18nService);
 
@@ -54,12 +64,13 @@ export class HeaderComponent {
     });
   }
 
-  /** The title actually shown: custom name, or the localized default. */
+  /** The title actually shown: team name, or the localized default. */
   get displayTitle(): string {
     return this.boardName ?? this.i18n.t('header.title');
   }
 
   startEdit(): void {
+    if (!this.canRename) return;
     this.draft.set(this.displayTitle);
     this.editing.set(true);
   }

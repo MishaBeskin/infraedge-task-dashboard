@@ -86,6 +86,7 @@ describe('TaskDialogComponent', () => {
       status: 'todo',
       priority: 'medium',
       position: 1,
+      teamId: 't1',
       createdAt: 't',
       updatedAt: 't',
     });

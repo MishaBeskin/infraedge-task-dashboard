@@ -42,6 +42,7 @@ const baseTask: Task = {
   status: 'todo',
   priority: 'medium',
   position: 1,
+  teamId: 't1',
   createdAt: 't0',
   updatedAt: 't0',
 };

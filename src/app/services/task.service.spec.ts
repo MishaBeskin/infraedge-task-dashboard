@@ -3,7 +3,10 @@ import { firstValueFrom } from 'rxjs';
 import { TaskService } from './task.service';
 import { SupabaseService } from './supabase.service';
 import { AuthService } from './auth.service';
+import { TeamService } from './team.service';
 import { tasksCacheKey } from './cache.util';
+
+const TEAM = 't1';
 
 /** The test runner's `localStorage` is a stub without methods, so persistence
  *  specs install a real in-memory one (matches theme/i18n specs). */
@@ -38,6 +41,8 @@ interface Row {
   priority: string;
   description: string | null;
   due_date: string | null;
+  team_id: string;
+  assignee_id: string | null;
   position: number;
   created_at: string;
   updated_at: string;
@@ -64,6 +69,8 @@ class FakeTable {
       priority: 'medium',
       description: null,
       due_date: null,
+      team_id: TEAM,
+      assignee_id: null,
       position: i + 1,
       created_at: 't0',
       updated_at: 't0',
@@ -131,6 +138,8 @@ class FakeQuery {
           priority: 'medium',
           description: null,
           due_date: null,
+          team_id: TEAM,
+          assignee_id: null,
           position: 0,
           created_at: 't1',
           updated_at: 't1',
@@ -179,11 +188,13 @@ describe('TaskService', () => {
   let service: TaskService;
   let table: FakeTable;
   let auth: { getCurrentUser: () => { id: string } | null };
+  let activeTeamId: string | null;
 
   beforeEach(() => {
     vi.stubGlobal('localStorage', memoryStorage());
     table = new FakeTable();
     auth = { getCurrentUser: () => ({ id: 'u1' }) };
+    activeTeamId = TEAM;
     const supabaseMock = {
       client: { from: () => new FakeQuery(table) },
     };
@@ -191,6 +202,7 @@ describe('TaskService', () => {
       providers: [
         { provide: SupabaseService, useValue: supabaseMock },
         { provide: AuthService, useValue: auth },
+        { provide: TeamService, useValue: { activeTeamId: () => activeTeamId } },
       ],
     });
     service = TestBed.inject(TaskService);
@@ -521,7 +533,7 @@ describe('TaskService', () => {
     table.seed([mkTask({ id: '1', due_date: '2027-01-05', title: 'Dated' })]);
     await firstValueFrom(service.loadTasks());
 
-    const blob = JSON.parse(localStorage.getItem(tasksCacheKey('u1'))!);
+    const blob = JSON.parse(localStorage.getItem(tasksCacheKey('u1', TEAM))!);
     expect(blob[0]).toMatchObject({ id: '1', dueDate: '2027-01-05' });
 
     // Server now unavailable — the cached blob is re-seeded, dueDate intact.
@@ -532,15 +544,16 @@ describe('TaskService', () => {
 
   // ── localStorage cache (stale-while-revalidate) ────────────────
 
-  const seedCache = (uid: string, rows: Partial<Row>[]) =>
+  const seedCache = (uid: string, teamId: string, rows: Partial<Row>[]) =>
     localStorage.setItem(
-      tasksCacheKey(uid),
+      tasksCacheKey(uid, teamId),
       JSON.stringify(
         rows.map((r, i) => ({
           id: String(i + 1),
           title: 'Cached',
           status: 'todo',
           priority: 'medium',
+          teamId,
           position: i + 1,
           createdAt: 't0',
           updatedAt: 't0',
@@ -550,7 +563,7 @@ describe('TaskService', () => {
     );
 
   it('seeds tasks$ synchronously from cache before the fetch resolves', async () => {
-    seedCache('u1', [{ id: '1', title: 'FromCache' }]);
+    seedCache('u1', TEAM, [{ id: '1', title: 'FromCache' }]);
     table.seed([mkTask({ id: '9', title: 'FromServer', position: 1 })]);
 
     service.loadTasks().subscribe(); // not awaited — check the synchronous seed
@@ -559,7 +572,7 @@ describe('TaskService', () => {
   });
 
   it('does not show the skeleton when a cache hit seeds the list', async () => {
-    seedCache('u1', [{ id: '1' }]);
+    seedCache('u1', TEAM, [{ id: '1' }]);
     const seen: boolean[] = [];
     service.loading$.subscribe((l) => seen.push(l));
 
@@ -569,18 +582,18 @@ describe('TaskService', () => {
   });
 
   it('overwrites the cached list with server data once the fetch resolves', async () => {
-    seedCache('u1', [{ id: '1', title: 'Stale' }]);
+    seedCache('u1', TEAM, [{ id: '1', title: 'Stale' }]);
     table.seed([mkTask({ id: '9', title: 'Fresh', position: 1 })]);
 
     await firstValueFrom(service.loadTasks());
 
     expect((await firstValueFrom(service.tasks$)).map((t) => t.title)).toEqual(['Fresh']);
-    const cached = JSON.parse(localStorage.getItem(tasksCacheKey('u1'))!);
+    const cached = JSON.parse(localStorage.getItem(tasksCacheKey('u1', TEAM))!);
     expect(cached.map((t: { title: string }) => t.title)).toEqual(['Fresh']);
   });
 
   it('keeps the cached list and raises no error banner when the fetch fails', async () => {
-    seedCache('u1', [{ id: '1', title: 'Offline copy' }]);
+    seedCache('u1', TEAM, [{ id: '1', title: 'Offline copy' }]);
     table.failNext = true;
 
     await firstValueFrom(service.loadTasks());
@@ -598,7 +611,7 @@ describe('TaskService', () => {
     await firstValueFrom(service.loadTasks());
 
     const cache = () =>
-      JSON.parse(localStorage.getItem(tasksCacheKey('u1'))!) as Array<{
+      JSON.parse(localStorage.getItem(tasksCacheKey('u1', TEAM))!) as Array<{
         id: string;
         title: string;
         status: string;
@@ -620,7 +633,7 @@ describe('TaskService', () => {
   });
 
   it('does not read cache written under a different uid', async () => {
-    seedCache('other-user', [{ id: '1', title: 'Someone else' }]);
+    seedCache('other-user', TEAM, [{ id: '1', title: 'Someone else' }]);
     table.seed([mkTask({ id: '9', title: 'Mine', position: 1 })]);
 
     service.loadTasks().subscribe();
@@ -632,7 +645,7 @@ describe('TaskService', () => {
   });
 
   it('ignores a corrupt / non-array cache blob and falls through to the network', async () => {
-    localStorage.setItem(tasksCacheKey('u1'), '{"not":"an array"}');
+    localStorage.setItem(tasksCacheKey('u1', TEAM), '{"not":"an array"}');
     table.seed([mkTask({ id: '9', title: 'Server', position: 1 })]);
 
     service.loadTasks().subscribe();
@@ -640,5 +653,48 @@ describe('TaskService', () => {
 
     await new Promise((r) => setTimeout(r));
     expect((await firstValueFrom(service.tasks$)).map((t) => t.title)).toEqual(['Server']);
+  });
+
+  // ── team scoping ──────────────────────────────────────────────
+
+  it('scopes the cache key by team id', async () => {
+    seedCache('u1', TEAM, [{ id: '1', title: 'Team-1 card' }]);
+    seedCache('u1', 't2', [{ id: '9', title: 'Team-2 card' }]);
+
+    service.loadTasks().subscribe();
+    const first = await firstValueFrom(service.tasks$);
+    expect(first.map((t) => t.title)).toEqual(['Team-1 card']);
+
+    activeTeamId = 't2';
+    service.loadTasks().subscribe();
+    const second = await firstValueFrom(service.tasks$);
+    expect(second.map((t) => t.title)).toEqual(['Team-2 card']);
+  });
+
+  it('scopes the SELECT by team_id and no-ops with no active team', async () => {
+    table.seed([mkTask({ id: '1', title: 'A', position: 1 })]);
+    await firstValueFrom(service.loadTasks());
+    expect((await firstValueFrom(service.tasks$)).map((t) => t.title)).toEqual(['A']);
+
+    activeTeamId = null;
+    await firstValueFrom(service.loadTasks());
+    expect(await firstValueFrom(service.tasks$)).toEqual([]);
+  });
+
+  it('sends team_id and assignee_id on insert; assignee_id round-trips', async () => {
+    const created = await firstValueFrom(
+      service.createTask({
+        title: 'Assigned',
+        status: 'todo',
+        priority: 'medium',
+        assigneeId: 'user-9',
+      }),
+    );
+    expect(created.teamId).toBe(TEAM);
+    expect(created.assigneeId).toBe('user-9');
+    expect(table.rows.at(-1)).toMatchObject({ team_id: TEAM, assignee_id: 'user-9' });
+
+    await firstValueFrom(service.updateTask(created.id, { assigneeId: null }));
+    expect(table.updates.at(-1)!.payload).toEqual({ assignee_id: null });
   });
 });

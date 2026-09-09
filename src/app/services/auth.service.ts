@@ -31,7 +31,9 @@ export class AuthService {
 
     this.supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       // A signed-out state must not leave the previous account's board data in
-      // localStorage for the next person to use this browser.
+      // localStorage for the next person to use this browser. TeamService resets
+      // its own in-memory state by watching `currentUser$` — no dependency here,
+      // which keeps this async callback injector-free.
       if (!session) clearAllCache();
       this.currentUserSubject.next(toAppUser(session?.user ?? null));
     });
@@ -84,6 +86,7 @@ export class AuthService {
 
   signOut() {
     // Clear immediately too — don't wait for the onAuthStateChange callback.
+    // TeamService.clear() runs off `currentUser$` going null.
     clearAllCache();
     return this.supabase.auth.signOut();
   }

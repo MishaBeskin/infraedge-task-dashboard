@@ -1,7 +1,13 @@
 <app-header
   [taskCount]="filteredCount()"
   [boardName]="boardName()"
+  [canRename]="canRename()"
+  [teams]="teams()"
+  [activeTeamId]="teamService.activeTeamId()"
   (renameBoard)="onRenameBoard($event)"
+  (switchTeam)="onSwitchTeam($event)"
+  (openCreateTeam)="openCreateTeam()"
+  (openTeamPanel)="onOpenTeamPanel()"
 />
 
 <div class="toolbar">
@@ -76,7 +82,7 @@
   </div>
 </div>
 
-@if (loading$ | async) {
+@if (showSkeleton()) {
   <div class="board-columns">
     @for (col of skeletonCols; track col) {
       <div class="skeleton-col">
@@ -119,6 +125,10 @@
     (closed)="closeEditDialog()"
     (taskSaved)="closeEditDialog()"
   />
+}
+
+@if (showCreateTeam) {
+  <app-new-team-dialog (closed)="closeCreateTeam()" (created)="closeCreateTeam()" />
 }
 
 <!-- Mobile-only floating action button. Hidden while a dialog is open so it

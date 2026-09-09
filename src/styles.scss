@@ -26,6 +26,12 @@
   --due-red-text: #b3201f;
   --due-red-fill: #fbe9e8;
   --due-red-border: #f1c4c2;
+
+  // Overlays / elevation / motion
+  --overlay-scrim: rgba(0, 0, 0, 0.45);
+  --elevation-modal: 0 8px 40px rgba(0, 0, 0, 0.18);
+  --elevation-menu: 0 12px 32px rgba(0, 0, 0, 0.14);
+  --spin-duration: 0.7s;
 }
 
 [data-theme='dark'] {
@@ -51,6 +57,10 @@
   --due-red-text: #f5928f;
   --due-red-fill: #2a1717;
   --due-red-border: #4a2a2a;
+
+  --overlay-scrim: rgba(0, 0, 0, 0.6);
+  --elevation-modal: 0 8px 44px rgba(0, 0, 0, 0.5);
+  --elevation-menu: 0 12px 36px rgba(0, 0, 0, 0.45);
 }
 
 // Responsive breakpoints live in src/styles/_breakpoints.scss and are @use'd from
@@ -70,6 +80,24 @@
 // affordances.
 * {
   -webkit-tap-highlight-color: transparent;
+}
+
+// Shared spinner keyframes (loading buttons, refresh icon).
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Respect the OS "reduce motion" preference app-wide.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 body {

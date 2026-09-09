@@ -3,6 +3,7 @@ import {
   inject,
   signal,
   computed,
+  effect,
   OnInit,
   ChangeDetectionStrategy,
   Signal,
@@ -11,7 +12,7 @@ import { AsyncPipe } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Task, Status } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
-import { BoardSettingsService } from '../../services/board-settings.service';
+import { TeamService } from '../../services/team.service';
 import { I18nService } from '../../services/i18n.service';
 import { HeaderComponent } from '../../components/header/header.component';
 import {
@@ -19,25 +20,53 @@ import {
   TaskDropEvent,
 } from '../../components/kanban-column/kanban-column.component';
 import { TaskDialogComponent } from '../../components/task-dialog/task-dialog.component';
+import { NewTeamDialogComponent } from '../../components/new-team-dialog/new-team-dialog.component';
 
 @Component({
   selector: 'app-board',
   standalone: true,
-  imports: [AsyncPipe, HeaderComponent, KanbanColumnComponent, TaskDialogComponent],
+  imports: [
+    AsyncPipe,
+    HeaderComponent,
+    KanbanColumnComponent,
+    TaskDialogComponent,
+    NewTeamDialogComponent,
+  ],
   templateUrl: './board.component.html',
   styleUrl: './board.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BoardComponent implements OnInit {
   private taskService = inject(TaskService);
-  private boardSettings = inject(BoardSettingsService);
+  protected teamService = inject(TeamService);
   protected i18n = inject(I18nService);
 
-  loading$ = this.taskService.loading$;
   error$ = this.taskService.error$;
 
-  /** Custom board title (null = show the localized default in the header). */
-  protected boardName = toSignal(this.boardSettings.boardName$, { initialValue: null });
+  /** Board title == active team name (null while teams load). */
+  protected boardName = computed(() => this.teamService.activeTeam()?.name ?? null);
+  /** Only a team owner may rename the board. */
+  protected canRename = computed(() => this.teamService.activeTeam()?.role === 'owner');
+  protected teams = this.teamService.teams;
+
+  private tasksLoading = toSignal(this.taskService.loading$, { initialValue: false });
+  /** Show the skeleton until teams have resolved once (avoids a cold
+   *  empty-columns flash) and while a task fetch is in flight. */
+  protected showSkeleton = computed(() => !this.teamService.teamsLoaded() || this.tasksLoading());
+
+  /** Guards the effect against re-running loadTasks for a team id it already ran. */
+  private lastLoadedTeamId: string | null | undefined;
+
+  constructor() {
+    // Reload the card list when the active team changes (team switch, or the
+    // initial reconcile inside loadTeams). loadTasks() no-ops when no team.
+    effect(() => {
+      const id = this.teamService.activeTeamId();
+      if (id === this.lastLoadedTeamId) return;
+      this.lastLoadedTeamId = id;
+      this.taskService.loadTasks().subscribe();
+    });
+  }
 
   priorityFilter = signal<'all' | 'high' | 'medium' | 'low'>('all');
   searchQuery = signal<string>('');
@@ -48,6 +77,7 @@ export class BoardComponent implements OnInit {
   dialogStatus = signal<Status>('todo');
   showEditDialog = false;
   editingTask: Task | null = null;
+  showCreateTeam = false;
 
   // toSignal bridges the Observable into the signal graph so computed() below can
   // derive column arrays reactively without manual subscriptions or markForCheck().
@@ -95,13 +125,29 @@ export class BoardComponent implements OnInit {
   ];
 
   ngOnInit() {
-    this.taskService.loadTasks().subscribe();
-    this.boardSettings.loadBoardName().subscribe();
+    // The team-change effect kicks off loadTasks() once a team is active.
+    this.teamService.loadTeams().subscribe();
   }
 
   onRenameBoard(name: string) {
-    this.boardSettings.renameBoard(name).subscribe({ error: () => undefined });
+    const id = this.teamService.activeTeamId();
+    if (id) this.teamService.renameTeam(id, name).subscribe({ error: () => undefined });
   }
+
+  onSwitchTeam(id: string) {
+    this.teamService.setActiveTeam(id);
+  }
+
+  openCreateTeam() {
+    this.showCreateTeam = true;
+  }
+
+  closeCreateTeam() {
+    this.showCreateTeam = false;
+  }
+
+  /** Pass A stub — the team panel UI ships in Pass B. */
+  onOpenTeamPanel() {}
 
   setPriorityFilter(f: 'all' | 'high' | 'medium' | 'low') {
     this.priorityFilter.set(f);

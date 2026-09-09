@@ -174,26 +174,28 @@ describe('AuthService', () => {
     expect(auth.signOut).toHaveBeenCalled();
   });
 
-  it('clears every stack_cache_v1 entry on sign-out, leaving other keys alone', async () => {
-    localStorage.setItem('stack_cache_v1:tasks:uid-1', '[]');
-    localStorage.setItem('stack_cache_v1:boardName:uid-1', '"Roadmap"');
+  it('clears every stack_cache_v1 entry + the per-user active-team pointer on sign-out', async () => {
+    localStorage.setItem('stack_cache_v1:tasks:uid-1:t1', '[]');
+    localStorage.setItem('stack_active_team:uid-1', 't1');
     localStorage.setItem('stack_theme', 'dark');
 
     const { service } = setup();
     await service.signOut();
 
-    expect(localStorage.getItem('stack_cache_v1:tasks:uid-1')).toBeNull();
-    expect(localStorage.getItem('stack_cache_v1:boardName:uid-1')).toBeNull();
+    expect(localStorage.getItem('stack_cache_v1:tasks:uid-1:t1')).toBeNull();
+    expect(localStorage.getItem('stack_active_team:uid-1')).toBeNull();
     expect(localStorage.getItem('stack_theme')).toBe('dark');
   });
 
   it('clears the stack cache when the session drops to null', async () => {
-    localStorage.setItem('stack_cache_v1:tasks:uid-1', '[]');
+    localStorage.setItem('stack_cache_v1:tasks:uid-1:t1', '[]');
+    localStorage.setItem('stack_active_team:uid-1', 't1');
 
     const { service, auth } = setup({ user: userWith({}) });
     await service.whenReady();
     auth.emit(null);
 
-    expect(localStorage.getItem('stack_cache_v1:tasks:uid-1')).toBeNull();
+    expect(localStorage.getItem('stack_cache_v1:tasks:uid-1:t1')).toBeNull();
+    expect(localStorage.getItem('stack_active_team:uid-1')).toBeNull();
   });
 });

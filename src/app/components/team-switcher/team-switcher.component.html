@@ -1,0 +1,84 @@
+<span class="team-switcher">
+  <button
+    #trigger
+    type="button"
+    class="team-switcher__trigger"
+    [class.is-open]="open()"
+    aria-haspopup="menu"
+    [attr.aria-expanded]="open()"
+    [attr.aria-label]="i18n.t('team.switch')"
+    (click)="toggle()"
+  >
+    <svg
+      class="team-switcher__chevron"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  </button>
+
+  @if (open()) {
+    <div
+      #panel
+      class="team-switcher__panel"
+      role="menu"
+      [attr.aria-label]="i18n.t('team.switch')"
+      (keydown)="onPanelKeydown($event)"
+    >
+      <span class="team-switcher__label">{{ i18n.t('team.switcher.current') }}</span>
+
+      @for (team of teams; track team.id) {
+        <button
+          type="button"
+          class="team-switcher__row"
+          role="menuitemradio"
+          [attr.aria-checked]="team.id === activeTeamId"
+          [class.is-active]="team.id === activeTeamId"
+          (click)="select(team.id)"
+        >
+          @if (team.id === activeTeamId) {
+            <svg
+              class="team-switcher__check"
+              aria-hidden="true"
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          } @else {
+            <span class="team-switcher__check-spacer" aria-hidden="true"></span>
+          }
+          <span class="team-switcher__row-text">{{ team.name }}</span>
+          <span class="team-switcher__role">{{ roleLabel(team.role) }}</span>
+        </button>
+      }
+
+      <div class="team-switcher__divider" role="separator"></div>
+
+      <button
+        type="button"
+        class="team-switcher__row team-switcher__row--new"
+        role="menuitem"
+        (click)="requestCreate()"
+      >
+        <span class="team-switcher__row-text">{{ i18n.t('team.new') }}</span>
+      </button>
+    </div>
+  }
+</span>

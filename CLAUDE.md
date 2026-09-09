@@ -70,20 +70,29 @@ All access goes through `SupabaseService` (owns the single `SupabaseClient`).
 
 - Auth: `supabase.auth` — password, magic link, Google OAuth. Session persisted
   by the client, restored on load, refreshed automatically.
-- `tasks` table: `supabase.from('tasks').select/insert/update/delete`. RLS scopes
-  rows to `auth.uid()`, so the client never sends a user id. `user_id` defaults
-  to `auth.uid()` in the DB. `due_date` (nullable `date`) holds an optional
-  per-task due date; added by `0003_due_date.sql`.
-- DB columns are snake_case (`user_id`, `created_at`, `position`, `due_date`);
-  TaskService maps rows to the camelCase `Task` interface (`dueDate`).
-- `profiles` table: one row per user (auto-created by `handle_new_user`).
-  `board_name` (nullable) holds the user's custom board title; `null` means "show
-  the localized default". Read/written by `BoardSettingsService`; added by
-  `0002_board_name.sql`.
-- Schema: `supabase/migrations/0001_init.sql`, then
-  `supabase/migrations/0002_board_name.sql`, then
-  `supabase/migrations/0003_due_date.sql`. Seed users + tasks:
-  `supabase/seed.sql` (fallback `scripts/create-users.mjs`).
+- `tasks` table: `supabase.from('tasks').select/insert/update/delete`. As of
+  Phase 2 (`0004_teams.sql`) tasks are **team-scoped**: RLS is
+  `is_team_member(team_id)` for all four verbs — no more `auth.uid() = user_id`.
+  TaskService passes `.eq('team_id', activeTeamId)` explicitly and sets `team_id`
+  on insert (from the active team). `due_date` (nullable `date`, Phase 1) is the
+  optional per-task due date; `assignee_id` (nullable, FK `auth.users`, Phase 2)
+  is the assignee (nulled by a trigger when the member leaves).
+- DB columns are snake_case (`user_id`, `created_at`, `position`, `due_date`,
+  `team_id`, `assignee_id`); TaskService maps rows to the camelCase `Task`
+  interface (`dueDate`, `teamId`, `assigneeId`).
+- `teams` / `team_members` / `team_invitations` (Phase 2): one team == one shared
+  board, team name == board name. `team_members.role` is `owner` | `member`.
+  Helper SQL functions `is_team_member(t uuid)` / `is_team_owner(t uuid)` are
+  `SECURITY DEFINER` (break RLS recursion) and back every policy. RPCs
+  (`SECURITY DEFINER`): `accept_invitation(tok)`, `invite_to_team(p_team_id,
+p_email, p_role)`, `delete_team(p_team_id)`. All read/written by `TeamService`;
+  `activeTeamId` is persisted in `localStorage['stack_active_team']`.
+- `profiles` table: one row per user (auto-created by `handle_new_user`), holds
+  `name`. `profiles.board_name` is **deprecated** — the team name replaces it
+  (kept only for the `0004` data migration; `BoardSettingsService` is gone).
+- Schema: run `supabase/migrations/0001_init.sql`, then `0002_board_name.sql`,
+  `0003_due_date.sql`, `0004_teams.sql` (in order), then `supabase/seed.sql`
+  (fallback `scripts/create-users.mjs`).
 
 ## File structure to create
 
@@ -255,8 +264,10 @@ White card with colored right border by priority (high=red, medium=orange, low=g
 Inputs: defaultStatus: Status
 Outputs: closed: EventEmitter<void>, taskCreated: EventEmitter<Task>
 
-IMPORTANT: Use a normal-flow overlay div with min-height: 100vh — NOT position:fixed.
-White modal centered, 480px wide, RTL.
+The shipped `TaskDialogComponent` uses a `position: fixed; inset: 0` overlay
+(`z-index: 50`, scroll on the overlay) with a centered white modal (`min(480px,
+100vw - 2rem)`), RTL. It also has a due-date field (Phase 1) and — from Phase 2 —
+an `assignee` select (Pass B). Focus is trapped and restored on close.
 
 Fields (ReactiveFormsModule):
 
@@ -321,9 +332,10 @@ No local server — the app points straight at the hosted Supabase project.
 1. Create a Supabase project; copy the Project URL + publishable/anon key into
    `src/environments/environment.ts` (and `environment.prod.ts` / Vercel env).
 2. In the SQL editor run `supabase/migrations/0001_init.sql`, then
-   `supabase/migrations/0002_board_name.sql`, then
-   `supabase/migrations/0003_due_date.sql`, then `supabase/seed.sql` (imports
-   `alice@example.com` / `alice123` and `bob@example.com` / `bob123`).
+   `0002_board_name.sql`, `0003_due_date.sql`, `0004_teams.sql` (in order), then
+   `supabase/seed.sql` (imports `alice@example.com` / `alice123` and
+   `bob@example.com` / `bob123`). `0004_teams.sql` checkpoints `tasks` into
+   `tasks_backup` first; verify row counts, then drop `tasks_backup` by hand.
 3. Auth → Providers: enable Google (needs a Google Cloud OAuth client with
    redirect URI `https://<ref>.supabase.co/auth/v1/callback`).
 4. Auth → URL config: add `http://localhost:4200` and the Vercel domain to the

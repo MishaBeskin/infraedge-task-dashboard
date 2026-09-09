@@ -2,7 +2,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  EventEmitter,
   HostListener,
+  Output,
   inject,
   signal,
   viewChild,
@@ -37,6 +39,9 @@ export class UserMenuComponent {
   private host = inject<ElementRef<HTMLElement>>(ElementRef);
   protected themeService = inject(ThemeService);
   protected i18n = inject(I18nService);
+
+  /** Opens the team management panel (built in Pass B). */
+  @Output() openTeamPanel = new EventEmitter<void>();
 
   protected readonly open = signal(false);
 
@@ -80,6 +85,11 @@ export class UserMenuComponent {
 
   selectTheme(dark: boolean): void {
     this.themeService.set(dark);
+  }
+
+  manageTeam(): void {
+    this.close();
+    this.openTeamPanel.emit();
   }
 
   async logout(): Promise<void> {
