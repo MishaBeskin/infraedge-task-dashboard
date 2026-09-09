@@ -24,6 +24,10 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'invite/:token',
+    loadComponent: () => import('./pages/invite/invite.component').then((m) => m.InviteComponent),
+  },
+  {
     path: 'board',
     loadComponent: () => import('./pages/board/board.component').then((m) => m.BoardComponent),
     canActivate: [authGuard],

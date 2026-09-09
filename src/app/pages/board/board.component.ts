@@ -9,6 +9,7 @@ import {
   Signal,
 } from '@angular/core';
 import { AsyncPipe } from '@angular/common';
+import { Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Task, Status } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
@@ -21,6 +22,8 @@ import {
 } from '../../components/kanban-column/kanban-column.component';
 import { TaskDialogComponent } from '../../components/task-dialog/task-dialog.component';
 import { NewTeamDialogComponent } from '../../components/new-team-dialog/new-team-dialog.component';
+import { TeamPanelComponent } from '../../components/team-panel/team-panel.component';
+import { PENDING_INVITE_KEY } from '../invite/invite.component';
 
 @Component({
   selector: 'app-board',
@@ -31,6 +34,7 @@ import { NewTeamDialogComponent } from '../../components/new-team-dialog/new-tea
     KanbanColumnComponent,
     TaskDialogComponent,
     NewTeamDialogComponent,
+    TeamPanelComponent,
   ],
   templateUrl: './board.component.html',
   styleUrl: './board.component.scss',
@@ -40,6 +44,7 @@ export class BoardComponent implements OnInit {
   private taskService = inject(TaskService);
   protected teamService = inject(TeamService);
   protected i18n = inject(I18nService);
+  private router = inject(Router);
 
   error$ = this.taskService.error$;
 
@@ -65,6 +70,8 @@ export class BoardComponent implements OnInit {
       if (id === this.lastLoadedTeamId) return;
       this.lastLoadedTeamId = id;
       this.taskService.loadTasks().subscribe();
+      // Roster for the assignee select / task-card avatar (Pass B).
+      this.teamService.loadActiveMembers();
     });
   }
 
@@ -78,6 +85,7 @@ export class BoardComponent implements OnInit {
   showEditDialog = false;
   editingTask: Task | null = null;
   showCreateTeam = false;
+  showTeamPanel = false;
 
   // toSignal bridges the Observable into the signal graph so computed() below can
   // derive column arrays reactively without manual subscriptions or markForCheck().
@@ -125,6 +133,20 @@ export class BoardComponent implements OnInit {
   ];
 
   ngOnInit() {
+    // An invite link opened while signed out stashes its token and bounces
+    // through OAuth / magic-link, which always lands here rather than on the
+    // redirect URL — pick it back up and finish accepting.
+    let pendingInvite: string | null = null;
+    try {
+      pendingInvite = localStorage.getItem(PENDING_INVITE_KEY);
+    } catch {
+      /* ignore */
+    }
+    if (pendingInvite) {
+      this.router.navigate(['/invite', pendingInvite]);
+      return;
+    }
+
     // The team-change effect kicks off loadTasks() once a team is active.
     this.teamService.loadTeams().subscribe();
   }
@@ -146,8 +168,19 @@ export class BoardComponent implements OnInit {
     this.showCreateTeam = false;
   }
 
-  /** Pass A stub — the team panel UI ships in Pass B. */
-  onOpenTeamPanel() {}
+  onOpenTeamPanel() {
+    this.showTeamPanel = true;
+  }
+
+  closeTeamPanel() {
+    this.showTeamPanel = false;
+  }
+
+  /** A team-panel membership edit (member removed / team deleted) can change the
+   *  board — reload the card list so a nulled assignee or gone team is reflected. */
+  onTeamPanelChanged() {
+    this.taskService.loadTasks().subscribe();
+  }
 
   setPriorityFilter(f: 'all' | 'high' | 'medium' | 'low') {
     this.priorityFilter.set(f);

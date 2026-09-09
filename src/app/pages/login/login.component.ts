@@ -1,7 +1,7 @@
 import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { I18nService } from '../../services/i18n.service';
 import { LanguageToggleComponent } from '../../components/language-toggle/language-toggle.component';
@@ -18,7 +18,15 @@ export class LoginComponent {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   protected i18n = inject(I18nService);
+
+  /** Where to land after a successful sign-in — `?redirect=` when it's a safe
+   *  in-app path (e.g. an invite link bounced us here), otherwise the board. */
+  private get redirectTarget(): string {
+    const to = this.route.snapshot.queryParamMap.get('redirect');
+    return to && to.startsWith('/') && !to.startsWith('//') ? to : '/board';
+  }
 
   form = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
@@ -59,7 +67,7 @@ export class LoginComponent {
       this.error.set('login.error');
       return;
     }
-    this.router.navigate(['/board']);
+    this.router.navigateByUrl(this.redirectTarget);
   }
 
   async sendMagicLink() {

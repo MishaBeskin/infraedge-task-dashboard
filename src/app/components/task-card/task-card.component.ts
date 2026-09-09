@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { Task } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
+import { TeamService } from '../../services/team.service';
 import { I18nService } from '../../services/i18n.service';
 import { PointerDragService } from '../../services/pointer-drag.service';
 import {
@@ -45,6 +46,7 @@ export class TaskCardComponent implements OnDestroy {
   @Output() editTask = new EventEmitter<Task>();
 
   private taskService = inject(TaskService);
+  private teamService = inject(TeamService);
   protected i18n = inject(I18nService);
   private pointerDrag = inject(PointerDragService);
   private deleteTimer?: ReturnType<typeof setTimeout>;
@@ -107,6 +109,30 @@ export class TaskCardComponent implements OnDestroy {
   get dueAriaLabel(): string {
     return this.due().aria;
   }
+
+  /**
+   * The task's assignee resolved against the active-team roster (a name + its
+   * initials), or `null` when the task is unassigned or the roster hasn't
+   * loaded. Recomputes when the task or the roster changes.
+   */
+  readonly assignee = computed(() => {
+    const id = this.taskSig()?.assigneeId;
+    if (!id) return null;
+    const name =
+      this.teamService
+        .members()
+        .find((m) => m.userId === id)
+        ?.name?.trim() ?? '';
+    const initials = name
+      ? name
+          .split(/\s+/)
+          .map((part) => part[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase()
+      : '?';
+    return { name, initials };
+  });
 
   onStatusChange(event: Event) {
     const select = event.target as HTMLSelectElement;

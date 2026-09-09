@@ -131,6 +131,10 @@
   <app-new-team-dialog (closed)="closeCreateTeam()" (created)="closeCreateTeam()" />
 }
 
+@if (showTeamPanel) {
+  <app-team-panel (closed)="closeTeamPanel()" (changed)="onTeamPanelChanged()" />
+}
+
 <!-- Mobile-only floating action button. Hidden while a dialog is open so it
      can't bleed through the modal's stacking context. -->
 @if (!showDialog && !showEditDialog) {

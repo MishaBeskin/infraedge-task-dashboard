@@ -105,6 +105,16 @@
           {{ dueLabelText }}
         </span>
       }
+      @if (assignee(); as a) {
+        <span
+          class="assignee-chip"
+          role="img"
+          [attr.aria-label]="i18n.t('card.assignee.aria').replace('{name}', a.name || '?')"
+          [attr.title]="a.name"
+        >
+          {{ a.initials }}
+        </span>
+      }
     </div>
   </div>
 

@@ -17,6 +17,7 @@ import { DOCUMENT } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Task, Status } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
+import { TeamService } from '../../services/team.service';
 import { I18nService } from '../../services/i18n.service';
 
 @Component({
@@ -36,9 +37,13 @@ export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private fb = inject(FormBuilder);
   private taskService = inject(TaskService);
+  private teamService = inject(TeamService);
   private host = inject<ElementRef<HTMLElement>>(ElementRef);
   private doc = inject(DOCUMENT);
   protected i18n = inject(I18nService);
+
+  /** Active-team roster for the assignee select (Pass B). */
+  protected readonly members = this.teamService.members;
 
   /** Element focused before the dialog opened, restored on close. */
   private previouslyFocused: HTMLElement | null = null;
@@ -55,6 +60,7 @@ export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
     dueDate: [''],
     status: ['todo' as Status],
     priority: ['medium' as Task['priority']],
+    assigneeId: [''],
   });
 
   /** The native date input — focus is returned here when the clear button
@@ -68,6 +74,9 @@ export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit() {
     this.previouslyFocused = this.doc.activeElement as HTMLElement | null;
 
+    // Ensure the assignee <select> has an up-to-date roster to bind against.
+    this.teamService.loadActiveMembers();
+
     if (this.isEdit && this.task) {
       this.form.patchValue({
         title: this.task.title,
@@ -75,6 +84,7 @@ export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
         dueDate: this.task.dueDate ?? '',
         status: this.task.status,
         priority: this.task.priority,
+        assigneeId: this.task.assigneeId ?? '',
       });
     } else {
       this.form.patchValue({ status: this.defaultStatus });
@@ -146,13 +156,14 @@ export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
       this.form.markAllAsTouched();
       return;
     }
-    const { title, description, dueDate, status, priority } = this.form.value;
+    const { title, description, dueDate, status, priority, assigneeId } = this.form.value;
     const patch = {
       title: title!,
       description: description || undefined,
       dueDate: dueDate || undefined,
       status: status!,
       priority: priority!,
+      assigneeId: assigneeId || null,
     };
 
     this.isSubmitting.set(true);

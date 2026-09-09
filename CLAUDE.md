@@ -84,9 +84,17 @@ All access goes through `SupabaseService` (owns the single `SupabaseClient`).
   board, team name == board name. `team_members.role` is `owner` | `member`.
   Helper SQL functions `is_team_member(t uuid)` / `is_team_owner(t uuid)` are
   `SECURITY DEFINER` (break RLS recursion) and back every policy. RPCs
-  (`SECURITY DEFINER`): `accept_invitation(tok)`, `invite_to_team(p_team_id,
-p_email, p_role)`, `delete_team(p_team_id)`. All read/written by `TeamService`;
-  `activeTeamId` is persisted in `localStorage['stack_active_team']`.
+  (`SECURITY DEFINER`): `create_team(p_name)`, `accept_invitation(tok)`,
+  `invite_to_team(p_team_id, p_email, p_role)`, `delete_team(p_team_id)`,
+  `leave_team(p_team_id)`. All read/written by `TeamService`; `activeTeamId` is
+  persisted per-uid in `localStorage['stack_active_team:<uid>']`.
+- `TeamService.members` (signal) + `loadActiveMembers()` (Phase 2 Pass B): the
+  active team's roster, refreshed by BoardComponent on every team change and by
+  the team panel after a membership edit. Consumed by the task dialog's assignee
+  select and the task-card avatar chip. `fetchMembers` is a two-step read
+  (`team_members` then `profiles.in(ids)`, merged client-side) — there is **no
+  FK** between `team_members` and `profiles`, so a `profiles(...)` PostgREST
+  embed fails.
 - `profiles` table: one row per user (auto-created by `handle_new_user`), holds
   `name`. `profiles.board_name` is **deprecated** — the team name replaces it
   (kept only for the `0004` data migration; `BoardSettingsService` is gone).
@@ -155,6 +163,9 @@ new-task-dialog.component.scss
 - /register → RegisterComponent (lazy loaded)
 - /auth/callback → AuthCallbackComponent (OAuth / magic-link redirect target)
 - /reset-password → ResetPasswordComponent (password-recovery target)
+- /invite/:token → InviteComponent (shareable-invite target, Phase 2 Pass B — no
+  guard: it handles the signed-out case itself by stashing the token and
+  bouncing through /login, which honours `?redirect=`)
 - /board → BoardComponent (lazy loaded, canActivate: authGuard)
 - '' → redirect to /board
 - \*\* → redirect to /board
@@ -201,7 +212,9 @@ LEFT panel (form):
 - Error message in red: "פרטי ההתחברות שגויים"
 - Loading state: button disabled with text "מתחבר..."
 
-Behavior: ReactiveFormsModule, on submit call AuthService.login(), on success navigate to /board.
+Behavior: ReactiveFormsModule, on submit call AuthService.login(), on success
+navigate to `?redirect=` when it is a safe in-app path (an invite link bounced
+the user here), otherwise /board.
 
 ## HeaderComponent
 
@@ -258,6 +271,9 @@ White card with colored right border by priority (high=red, medium=orange, low=g
 - isUpdating flag: opacity 0.5 and disabled during PATCH request
 - `draggable="true"` for mouse (HTML5 DnD). A `.drag-handle` grip, shown only on
   `(pointer: coarse)`, starts the touch Pointer-Events drag (see KanbanColumn).
+- Assignee avatar chip (Phase 2 Pass B): a small brand-coloured initials circle in
+  `.card-meta` when `task.assigneeId` is set. The card injects `TeamService` and
+  resolves the id against its `members()` roster signal (`'?'` until it loads).
 
 ## NewTaskDialogComponent
 
@@ -266,18 +282,52 @@ Outputs: closed: EventEmitter<void>, taskCreated: EventEmitter<Task>
 
 The shipped `TaskDialogComponent` uses a `position: fixed; inset: 0` overlay
 (`z-index: 50`, scroll on the overlay) with a centered white modal (`min(480px,
-100vw - 2rem)`), RTL. It also has a due-date field (Phase 1) and — from Phase 2 —
-an `assignee` select (Pass B). Focus is trapped and restored on close.
+100vw - 2rem)`), RTL. It also has a due-date field (Phase 1) and an `assignee`
+select (Phase 2 Pass B). Focus is trapped and restored on close.
 
 Fields (ReactiveFormsModule):
 
 - כותרת: required text input
 - תיאור: optional textarea (labeled "תיאור · אופציונלי")
+- תאריך יעד: optional native date input (Phase 1)
 - סטטוס: native select pre-filled from defaultStatus
+- אחראי: native select, "ללא אחראי" + one option per active-team member
+  (`TeamService.members()`); the dialog calls `loadActiveMembers()` on open.
+  Submits `assigneeId` (empty → `null`) in the create/update patch.
 - עדיפות: 3-button pill toggle (גבוהה/בינונית/נמוכה), default בינונית, selected = dark filled
 
 Footer: "POST /tasks" hint on right, ביטול + "צור משימה" buttons on left.
 On submit: call TaskService.createTask() with form values + userId from AuthService, emit taskCreated, close.
+
+## TeamPanelComponent (Phase 2 Pass B)
+
+`src/app/components/team-panel/` — the "Manage team" modal opened from the
+user-menu (`openTeamPanel` output → BoardComponent `showTeamPanel`). Same
+overlay / focus-trap / Escape shell as the other dialogs. Reads everything off
+`TeamService` directly; `changed` output tells the board to reload tasks after a
+membership edit (the DB trigger nulls the removed member's `assignee_id`).
+
+- Members roster from `TeamService.members()`; the current user's row is tagged
+  "אני". Owner gets a per-row remove (two-click arm/confirm) on non-owner,
+  non-self rows → `removeMember` then `loadActiveMembers()`.
+- Owner-only invite section. **No email is sent** — every invite (email or link)
+  is a `team_invitations` row the owner copies the `/invite/<token>` URL from and
+  shares by hand; the section says so. Email invite (`inviteByEmail`, trims +
+  normalises before `Validators.email`; RPC errors → `teamPanel.invite.error.*`)
+  and one shareable link (`createLinkInvite`). Every pending row (email + link)
+  shows a copy-link button (`copiedToken` tracks which one) + revoke.
+- Footer "danger zone": "Leave team" (everyone) + "Delete team" (owner,
+  two-click). Both disabled — with a tooltip — when it's the caller's only team;
+  the `leave_team` / `delete_team` RPCs enforce the same guard server-side.
+
+## InviteComponent (Phase 2 Pass B)
+
+`src/app/pages/invite/` — target of `/invite/:token`. Signed in → `acceptInvite`,
+activate that team, go to /board. Signed out → stash the token in
+`localStorage['stack_pending_invite']` and route to `/login?redirect=/invite/…`.
+BoardComponent's `ngOnInit` also drains that key (the OAuth / magic-link
+round-trip lands on /board, not the redirect URL). Terminal errors map to
+`invite.error.*` / `invite.wrongAccount`.
 
 ## BoardComponent
 

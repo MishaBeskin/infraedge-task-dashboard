@@ -1,0 +1,9 @@
+<div class="invite-page">
+  @if (state() === 'error') {
+    <p class="invite-msg">{{ i18n.t(errorKey()) }}</p>
+    <a class="invite-link" routerLink="/board">{{ i18n.t('invite.toBoard') }}</a>
+  } @else {
+    <div class="spinner" aria-hidden="true"></div>
+    <p class="invite-msg">{{ i18n.t('invite.working') }}</p>
+  }
+</div>

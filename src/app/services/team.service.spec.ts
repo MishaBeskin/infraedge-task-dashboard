@@ -82,6 +82,10 @@ class FakeQ {
     this.filters.push([`gt:${col}`, val]);
     return this;
   }
+  in(col: string, val: unknown) {
+    this.filters.push([`in:${col}`, val]);
+    return this;
+  }
   single() {
     this.wantSingle = true;
     return this;
@@ -342,6 +346,34 @@ describe('TeamService', () => {
     expect(await firstValueFrom(svc.error$)).toBe('errors.lastTeam');
   });
 
+  it('loadActiveMembers joins team_members to profiles and puts owners first', async () => {
+    const svc = make();
+    await firstValueFrom(svc.loadTeams()); // activates t1
+    client.data['team_members'] = [
+      { user_id: 'u2', role: 'member' },
+      { user_id: 'u1', role: 'owner' },
+    ];
+    client.data['profiles'] = [
+      { id: 'u1', name: 'Me' },
+      { id: 'u2', name: 'Bob Roe' },
+    ];
+
+    svc.loadActiveMembers();
+    await new Promise((r) => setTimeout(r));
+
+    expect(svc.members()).toEqual([
+      { userId: 'u1', name: 'Me', email: '', role: 'owner' },
+      { userId: 'u2', name: 'Bob Roe', email: '', role: 'member' },
+    ]);
+  });
+
+  it('loadActiveMembers clears the roster when no team is active', async () => {
+    const svc = make();
+    svc.loadActiveMembers();
+    await new Promise((r) => setTimeout(r));
+    expect(svc.members()).toEqual([]);
+  });
+
   it('pendingInvitesForMe maps snake_case rows to TeamInvitation', async () => {
     const svc = make();
     client.data['team_invitations'] = [
@@ -369,14 +401,20 @@ describe('TeamService', () => {
     ]);
   });
 
-  it('clear() resets teams + active id', async () => {
+  it('clear() resets teams + active id + roster', async () => {
     const svc = make();
     await firstValueFrom(svc.loadTeams());
+    client.data['team_members'] = [{ user_id: 'u1', role: 'owner' }];
+    client.data['profiles'] = [{ id: 'u1', name: 'Me' }];
+    svc.loadActiveMembers();
+    await new Promise((r) => setTimeout(r));
     expect(svc.teams().length).toBe(2);
+    expect(svc.members().length).toBe(1);
 
     svc.clear();
 
     expect(svc.teams()).toEqual([]);
+    expect(svc.members()).toEqual([]);
     expect(svc.activeTeamId()).toBeNull();
   });
 });

@@ -81,6 +81,13 @@ export class TeamService {
   private readonly teamsLoadedSig = signal(false);
   readonly teamsLoaded = this.teamsLoadedSig.asReadonly();
 
+  /** Members of the active team (Pass B). Filled by `loadActiveMembers()` on
+   *  every team change and consumed by the task dialog's assignee select and the
+   *  task-card avatar chip. Left untouched on a fetch failure so the board just
+   *  shows initials-less chips rather than losing the roster. */
+  private readonly membersSig = signal<TeamMember[]>([]);
+  readonly members = this.membersSig.asReadonly();
+
   // ── Reads ────────────────────────────────────────────────────────
 
   /** Loads the caller's teams (with role). Seeds synchronously from cache, then
@@ -184,6 +191,22 @@ export class TeamService {
     return from(this.fetchMembers(teamId)).pipe(catchError(() => of([])));
   }
 
+  /** Refreshes the `members` signal for the currently active team. Fire-and-
+   *  forget: the board calls it on every team change, the team panel after a
+   *  membership edit. No active team clears the list. */
+  loadActiveMembers(): void {
+    const teamId = this.activeTeamId();
+    if (!teamId) {
+      this.membersSig.set([]);
+      return;
+    }
+    this.fetchMembers(teamId)
+      .then((m) => this.membersSig.set(m))
+      .catch(() => {
+        /* keep whatever roster we had */
+      });
+  }
+
   /** Owner removing another member (Pass B). Leaving your own team goes through
    *  `leaveTeam` / the `leave_team` RPC instead. */
   removeMember(teamId: string, userId: string): Observable<void> {
@@ -275,6 +298,7 @@ export class TeamService {
   clear(): void {
     this.teamsSubject.next([]);
     this.teamsSig.set([]);
+    this.membersSig.set([]);
     this.errorSubject.next(null);
     this.activeTeamId.set(null);
     this.teamsLoadedSig.set(false);
@@ -379,20 +403,39 @@ export class TeamService {
   }
 
   private async fetchMembers(teamId: string): Promise<TeamMember[]> {
-    const { data, error } = await this.supabase
+    // Two steps, not a `profiles(name)` embed: there is no FK between
+    // `team_members` and `profiles` (both only reference `auth.users`), so
+    // PostgREST can't resolve the embed and the whole query fails.
+    const { data: rows, error } = await this.supabase
       .from('team_members')
-      .select('user_id, role, profiles(name)')
+      .select('user_id, role')
       .eq('team_id', teamId);
     if (error) throw error;
-    return (data ?? []).map((r) => {
-      const row = r as {
-        user_id: string;
-        role: TeamRole;
-        profiles: { name: string } | { name: string }[] | null;
-      };
-      const p = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-      return { userId: row.user_id, name: p?.name ?? '', email: '', role: row.role };
-    });
+
+    const members = (rows ?? []) as { user_id: string; role: TeamRole }[];
+    if (members.length === 0) return [];
+
+    const ids = members.map((m) => m.user_id);
+    const { data: profiles } = await this.supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', ids);
+    const nameById = new Map(
+      ((profiles ?? []) as { id: string; name: string | null }[]).map((p) => [p.id, p.name ?? '']),
+    );
+
+    return members
+      .map((m) => ({
+        userId: m.user_id,
+        name: nameById.get(m.user_id) ?? '',
+        email: '',
+        role: m.role,
+      }))
+      .sort((a, b) => {
+        // Owners first, then by name.
+        if (a.role !== b.role) return a.role === 'owner' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
   }
 
   private async deleteMember(teamId: string, userId: string): Promise<void> {

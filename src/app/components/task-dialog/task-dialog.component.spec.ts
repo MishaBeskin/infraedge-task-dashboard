@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import { TaskDialogComponent } from './task-dialog.component';
 import { TaskService } from '../../services/task.service';
+import { TeamService } from '../../services/team.service';
 import { Task } from '../../models/task.model';
 
 class FakeTaskService {
@@ -17,6 +19,14 @@ class FakeTaskService {
     this.lastUpdate = new Subject<Task>();
     return this.lastUpdate.asObservable();
   });
+}
+
+class FakeTeamService {
+  members = signal<{ userId: string; name: string; email: string; role: 'owner' | 'member' }[]>([
+    { userId: 'u1', name: 'Alice Doe', email: '', role: 'owner' },
+    { userId: 'u2', name: 'Bob Roe', email: '', role: 'member' },
+  ]);
+  loadActiveMembers = vi.fn();
 }
 
 const attached: HTMLElement[] = [];
@@ -36,6 +46,7 @@ function mountCreate(attach = false) {
     dueDate: '',
     status: 'todo',
     priority: 'medium',
+    assigneeId: '',
   });
   return fixture;
 }
@@ -46,7 +57,10 @@ describe('TaskDialogComponent', () => {
   beforeEach(() => {
     svc = new FakeTaskService();
     TestBed.configureTestingModule({
-      providers: [{ provide: TaskService, useValue: svc }],
+      providers: [
+        { provide: TaskService, useValue: svc },
+        { provide: TeamService, useValue: new FakeTeamService() },
+      ],
     });
   });
 

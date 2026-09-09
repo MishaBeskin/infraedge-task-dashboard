@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import { TaskCardComponent } from './task-card.component';
 import { TaskService } from '../../services/task.service';
+import { TeamService } from '../../services/team.service';
 import { PointerDragService } from '../../services/pointer-drag.service';
 import { Task } from '../../models/task.model';
 
@@ -19,6 +21,11 @@ class FakeTaskService {
     this.lastDelete = new Subject<void>();
     return this.lastDelete.asObservable();
   });
+}
+
+/** Fake TeamService — just the roster the card reads for the assignee chip. */
+class FakeTeamService {
+  members = signal<{ userId: string; name: string; email: string; role: 'owner' | 'member' }[]>([]);
 }
 
 /** Fake PointerDragService — records the touch-drag lifecycle calls. */
@@ -72,6 +79,7 @@ describe('TaskCardComponent', () => {
     TestBed.configureTestingModule({
       providers: [
         { provide: TaskService, useValue: svc },
+        { provide: TeamService, useValue: new FakeTeamService() },
         { provide: PointerDragService, useValue: drag },
       ],
     });

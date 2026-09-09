@@ -61,6 +61,16 @@
       </div>
 
       <div class="field">
+        <label for="task-assignee">{{ i18n.t('dialog.field.assignee') }}</label>
+        <select id="task-assignee" formControlName="assigneeId">
+          <option value="">{{ i18n.t('dialog.field.assignee.unassigned') }}</option>
+          @for (m of members(); track m.userId) {
+            <option [value]="m.userId">{{ m.name || m.userId }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
         <label id="priority-label">{{ i18n.t('dialog.field.priority') }}</label>
         <div
           class="priority-toggle"

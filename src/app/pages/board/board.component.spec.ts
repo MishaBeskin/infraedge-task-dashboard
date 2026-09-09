@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { computed, signal } from '@angular/core';
+import { provideRouter } from '@angular/router';
 import { BehaviorSubject, of } from 'rxjs';
 import { BoardComponent } from './board.component';
 import { TaskService } from '../../services/task.service';
@@ -38,8 +39,10 @@ class FakeTeamService {
   activeTeamId = signal<string | null>('t1');
   activeTeam = computed(() => this.teams().find((t) => t.id === this.activeTeamId()) ?? null);
   teamsLoaded = signal(true);
+  members = signal<{ userId: string; name: string; email: string; role: 'owner' | 'member' }[]>([]);
   error$ = new BehaviorSubject<string | null>(null);
   loadTeams = vi.fn(() => of(undefined));
+  loadActiveMembers = vi.fn();
   renameTeam = vi.fn(() => of(undefined));
   createTeam = vi.fn(() => of({ id: 'new', name: 'New', role: 'owner' as const }));
   setActiveTeam = vi.fn((id: string) => this.activeTeamId.set(id));
@@ -51,6 +54,7 @@ function setup(tasks: Task[]) {
   svc.tasks$.next(tasks);
   TestBed.configureTestingModule({
     providers: [
+      provideRouter([]),
       { provide: TaskService, useValue: svc },
       { provide: TeamService, useValue: team },
     ],

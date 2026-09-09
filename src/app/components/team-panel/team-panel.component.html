@@ -1,0 +1,170 @@
+<div class="overlay" (click)="closed.emit()">
+  <div
+    class="modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="team-panel-title"
+    tabindex="-1"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="modal-header">
+      <h3 id="team-panel-title" class="modal-title">
+        {{ i18n.t('teamPanel.title') }}<span class="modal-title__team">{{ team()?.name }}</span>
+      </h3>
+      <button
+        type="button"
+        class="close-btn"
+        (click)="closed.emit()"
+        [attr.aria-label]="i18n.t('dialog.close')"
+      >
+        ✕
+      </button>
+    </div>
+
+    <div class="panel-body">
+      <!-- ── Members ─────────────────────────────────────────── -->
+      <section class="panel-section">
+        <h4 class="panel-section__title">
+          {{ i18n.t('teamPanel.members') }} <span class="count">{{ members().length }}</span>
+        </h4>
+        <ul class="member-list">
+          @for (m of members(); track m.userId) {
+            <li class="member-row">
+              <span class="member-avatar" aria-hidden="true">{{ initials(m.name) }}</span>
+              <span class="member-name">
+                {{ m.name || m.userId }}
+                @if (m.userId === myId) {
+                  <span class="member-you">{{ i18n.t('teamPanel.you') }}</span>
+                }
+              </span>
+              <span class="member-role" [class.is-owner]="m.role === 'owner'">
+                {{ roleLabel(m.role) }}
+              </span>
+              @if (isOwner() && m.role !== 'owner' && m.userId !== myId) {
+                <button
+                  type="button"
+                  class="row-action"
+                  [class.is-armed]="confirmRemove().has(m.userId)"
+                  [disabled]="busy()"
+                  (click)="removeMember(m.userId)"
+                >
+                  {{
+                    confirmRemove().has(m.userId)
+                      ? i18n.t('teamPanel.member.removeConfirm')
+                      : i18n.t('teamPanel.member.remove')
+                  }}
+                </button>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+
+      <!-- ── Invite (owner only) ─────────────────────────────── -->
+      @if (isOwner()) {
+        <section class="panel-section">
+          <h4 class="panel-section__title">{{ i18n.t('teamPanel.invite') }}</h4>
+
+          <form class="invite-form" [formGroup]="form" (ngSubmit)="inviteByEmail()">
+            <input
+              type="email"
+              formControlName="email"
+              dir="ltr"
+              [placeholder]="i18n.t('teamPanel.invite.email.placeholder')"
+              [class.field-error]="form.controls.email.invalid && form.controls.email.touched"
+            />
+            <button type="submit" class="btn-submit" [disabled]="busy()">
+              {{ i18n.t('teamPanel.invite.send') }}
+            </button>
+          </form>
+          @if (form.controls.email.touched && form.controls.email.invalid) {
+            <span class="field-error-msg">{{ i18n.t('teamPanel.invite.email.invalid') }}</span>
+          }
+          <p class="invite-hint">{{ i18n.t('teamPanel.invite.hint') }}</p>
+
+          <!-- Shareable link -->
+          @if (linkInvite(); as link) {
+            <div class="link-row">
+              <input
+                class="link-url"
+                type="text"
+                dir="ltr"
+                readonly
+                [value]="linkUrl(link.token)"
+                [attr.aria-label]="i18n.t('teamPanel.link.label')"
+              />
+              <button type="button" class="row-action" (click)="copyLink(link.token)">
+                {{
+                  copiedToken() === link.token
+                    ? i18n.t('teamPanel.link.copied')
+                    : i18n.t('teamPanel.link.copy')
+                }}
+              </button>
+              <button type="button" class="row-action" (click)="revokeInvite(link.id)">
+                {{ i18n.t('teamPanel.link.revoke') }}
+              </button>
+            </div>
+          } @else {
+            <button type="button" class="link-create" [disabled]="busy()" (click)="createLink()">
+              {{ i18n.t('teamPanel.link.create') }}
+            </button>
+          }
+
+          <!-- Pending email invites -->
+          @if (emailInvites().length) {
+            <ul class="invite-list">
+              @for (inv of emailInvites(); track inv.id) {
+                <li class="invite-row">
+                  <span class="invite-email" dir="ltr">{{ inv.email }}</span>
+                  <span class="invite-tag">{{ i18n.t('teamPanel.invite.pending') }}</span>
+                  <button type="button" class="row-action" (click)="copyLink(inv.token)">
+                    {{
+                      copiedToken() === inv.token
+                        ? i18n.t('teamPanel.link.copied')
+                        : i18n.t('teamPanel.link.copy')
+                    }}
+                  </button>
+                  <button type="button" class="row-action" (click)="revokeInvite(inv.id)">
+                    {{ i18n.t('teamPanel.link.revoke') }}
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </section>
+      }
+
+      @if (error()) {
+        <p class="form-error" role="alert">{{ i18n.t(error()!) }}</p>
+      }
+      @if (notice()) {
+        <p class="form-notice" role="status">{{ i18n.t(notice()!) }}</p>
+      }
+    </div>
+
+    <!-- ── Danger zone ───────────────────────────────────────── -->
+    <div class="modal-footer">
+      <button
+        type="button"
+        class="btn-danger"
+        [disabled]="busy() || !canLeave()"
+        [attr.title]="!canLeave() ? i18n.t('errors.lastTeam') : null"
+        (click)="leaveTeam()"
+      >
+        {{ i18n.t('teamPanel.leave') }}
+      </button>
+      @if (isOwner()) {
+        <button
+          type="button"
+          class="btn-danger"
+          [class.is-armed]="confirmDelete()"
+          [disabled]="busy() || !canLeave()"
+          [attr.title]="!canLeave() ? i18n.t('errors.lastTeam') : null"
+          (click)="deleteTeam()"
+        >
+          {{ confirmDelete() ? i18n.t('teamPanel.delete.confirm') : i18n.t('teamPanel.delete') }}
+        </button>
+      }
+    </div>
+  </div>
+</div>
