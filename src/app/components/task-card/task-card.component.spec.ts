@@ -46,9 +46,17 @@ const baseTask: Task = {
   updatedAt: 't0',
 };
 
-function mount() {
+/** `YYYY-MM-DD` for `n` days from today (n<0 = past). */
+function isoInDays(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  const p = (x: number) => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function mount(task: Task = baseTask) {
   const fixture = TestBed.createComponent(TaskCardComponent);
-  fixture.componentRef.setInput('task', baseTask);
+  fixture.componentRef.setInput('task', task);
   fixture.detectChanges();
   return fixture;
 }
@@ -131,6 +139,46 @@ describe('TaskCardComponent', () => {
     expect(comp.showDeleteConfirm()).toBe(false);
     expect(comp.deleteError()).toBe('card.deleteError');
     expect(fixture.nativeElement.querySelector('.card-error')).toBeTruthy();
+  });
+
+  // ── Due-date badge ─────────────────────────────────────────────
+
+  it('renders no due badge when the task has no due date', () => {
+    const badge = mount().nativeElement.querySelector('.due-badge');
+    expect(badge).toBeNull();
+  });
+
+  it('renders a role="img" badge with a non-empty aria-label when a due date is set', () => {
+    const fixture = mount({
+      ...baseTask,
+      createdAt: new Date(Date.now() - 10 * 86_400_000).toISOString(),
+      dueDate: isoInDays(20),
+    });
+    const badge: HTMLElement = fixture.nativeElement.querySelector('.due-badge');
+
+    expect(badge).toBeTruthy();
+    expect(badge.getAttribute('role')).toBe('img');
+    expect(badge.getAttribute('aria-label')?.length).toBeGreaterThan(0);
+  });
+
+  it('shows the calendar icon for a future due date and the alert-triangle when overdue', () => {
+    const future: HTMLElement = mount({
+      ...baseTask,
+      createdAt: new Date(Date.now() - 10 * 86_400_000).toISOString(),
+      dueDate: isoInDays(20),
+    }).nativeElement.querySelector('.due-badge');
+    // Feather calendar has a <rect>; alert-triangle does not.
+    expect(future.querySelector('rect')).toBeTruthy();
+    expect(future.classList.contains('is-overdue')).toBe(false);
+
+    const overdue: HTMLElement = mount({
+      ...baseTask,
+      createdAt: new Date(Date.now() - 10 * 86_400_000).toISOString(),
+      dueDate: isoInDays(-3),
+    }).nativeElement.querySelector('.due-badge');
+    expect(overdue.querySelector('rect')).toBeNull();
+    expect(overdue.querySelector('path')).toBeTruthy();
+    expect(overdue.classList.contains('is-overdue')).toBe(true);
   });
 
   // ── Touch drag via the grip handle ──────────────────────────────

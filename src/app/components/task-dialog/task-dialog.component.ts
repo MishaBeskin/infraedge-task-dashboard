@@ -10,6 +10,7 @@ import {
   HostListener,
   inject,
   signal,
+  viewChild,
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
@@ -51,9 +52,14 @@ export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
   form = this.fb.group({
     title: ['', Validators.required],
     description: [''],
+    dueDate: [''],
     status: ['todo' as Status],
     priority: ['medium' as Task['priority']],
   });
+
+  /** The native date input — focus is returned here when the clear button
+   *  unmounts itself on clear. */
+  private dueInput = viewChild<ElementRef<HTMLInputElement>>('dueInput');
 
   get isEdit() {
     return this.mode === 'edit';
@@ -66,6 +72,7 @@ export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
       this.form.patchValue({
         title: this.task.title,
         description: this.task.description ?? '',
+        dueDate: this.task.dueDate ?? '',
         status: this.task.status,
         priority: this.task.priority,
       });
@@ -129,15 +136,21 @@ export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
     this.form.patchValue({ priority });
   }
 
+  clearDueDate() {
+    this.form.patchValue({ dueDate: '' });
+    this.dueInput()?.nativeElement.focus();
+  }
+
   submit() {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
-    const { title, description, status, priority } = this.form.value;
+    const { title, description, dueDate, status, priority } = this.form.value;
     const patch = {
       title: title!,
       description: description || undefined,
+      dueDate: dueDate || undefined,
       status: status!,
       priority: priority!,
     };

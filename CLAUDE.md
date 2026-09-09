@@ -58,9 +58,9 @@ desktop density is unaffected.
 File: src/app/models/task.model.ts
 
 interface AppUser { id: string, name, email } // derived from the Supabase session; no password/token client-side
-interface Task { id: string, title, status: 'todo'|'in-progress'|'done', priority: 'high'|'medium'|'low', description?, position, createdAt, updatedAt }
-type NewTask = Pick<Task,'title'|'status'|'priority'> & { description? }
-type TaskPatch = Partial<Pick<Task,'title'|'description'|'status'|'priority'|'position'>>
+interface Task { id: string, title, status: 'todo'|'in-progress'|'done', priority: 'high'|'medium'|'low', description?, dueDate?, position, createdAt, updatedAt }
+type NewTask = Pick<Task,'title'|'status'|'priority'> & { description?, dueDate? }
+type TaskPatch = Partial<Pick<Task,'title'|'description'|'status'|'priority'|'position'|'dueDate'>>
 type Priority = Task['priority']
 type Status = Task['status']
 
@@ -72,15 +72,17 @@ All access goes through `SupabaseService` (owns the single `SupabaseClient`).
   by the client, restored on load, refreshed automatically.
 - `tasks` table: `supabase.from('tasks').select/insert/update/delete`. RLS scopes
   rows to `auth.uid()`, so the client never sends a user id. `user_id` defaults
-  to `auth.uid()` in the DB.
-- DB columns are snake_case (`user_id`, `created_at`, `position`); TaskService
-  maps rows to the camelCase `Task` interface.
+  to `auth.uid()` in the DB. `due_date` (nullable `date`) holds an optional
+  per-task due date; added by `0003_due_date.sql`.
+- DB columns are snake_case (`user_id`, `created_at`, `position`, `due_date`);
+  TaskService maps rows to the camelCase `Task` interface (`dueDate`).
 - `profiles` table: one row per user (auto-created by `handle_new_user`).
   `board_name` (nullable) holds the user's custom board title; `null` means "show
   the localized default". Read/written by `BoardSettingsService`; added by
   `0002_board_name.sql`.
 - Schema: `supabase/migrations/0001_init.sql`, then
-  `supabase/migrations/0002_board_name.sql`. Seed users + tasks:
+  `supabase/migrations/0002_board_name.sql`, then
+  `supabase/migrations/0003_due_date.sql`. Seed users + tasks:
   `supabase/seed.sql` (fallback `scripts/create-users.mjs`).
 
 ## File structure to create
@@ -319,7 +321,8 @@ No local server — the app points straight at the hosted Supabase project.
 1. Create a Supabase project; copy the Project URL + publishable/anon key into
    `src/environments/environment.ts` (and `environment.prod.ts` / Vercel env).
 2. In the SQL editor run `supabase/migrations/0001_init.sql`, then
-   `supabase/migrations/0002_board_name.sql`, then `supabase/seed.sql` (imports
+   `supabase/migrations/0002_board_name.sql`, then
+   `supabase/migrations/0003_due_date.sql`, then `supabase/seed.sql` (imports
    `alice@example.com` / `alice123` and `bob@example.com` / `bob123`).
 3. Auth → Providers: enable Google (needs a Google Cloud OAuth client with
    redirect URI `https://<ref>.supabase.co/auth/v1/callback`).

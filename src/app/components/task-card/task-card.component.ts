@@ -4,6 +4,7 @@ import {
   Output,
   EventEmitter,
   signal,
+  computed,
   inject,
   ChangeDetectionStrategy,
   OnDestroy,
@@ -12,6 +13,13 @@ import { Task } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
 import { I18nService } from '../../services/i18n.service';
 import { PointerDragService } from '../../services/pointer-drag.service';
+import {
+  dueStatus as computeDueStatus,
+  isOverdue as computeIsOverdue,
+  dueLabel as computeDueLabel,
+  dueDateLong as computeDueDateLong,
+  DueStatus,
+} from '../../utils/due-date.util';
 
 @Component({
   selector: 'app-task-card',
@@ -22,7 +30,18 @@ import { PointerDragService } from '../../services/pointer-drag.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TaskCardComponent implements OnDestroy {
-  @Input({ required: true }) task!: Task;
+  // Backed by a signal so the due-date derivations below memoise across change
+  // detection instead of rebuilding an Intl.DateTimeFormat every pass.
+  private readonly taskSig = signal<Task | null>(null);
+
+  @Input({ required: true })
+  set task(value: Task) {
+    this.taskSig.set(value);
+  }
+  get task(): Task {
+    return this.taskSig()!;
+  }
+
   @Output() editTask = new EventEmitter<Task>();
 
   private taskService = inject(TaskService);
@@ -43,6 +62,50 @@ export class TaskCardComponent implements OnDestroy {
 
   get priorityLabel(): string {
     return this.i18n.t(`priority.${this.task.priority}`);
+  }
+
+  /**
+   * All due-date derivations for the current task, recomputed only when the task
+   * or the UI language changes (`new Date()` / `Intl.DateTimeFormat` run once per
+   * change, not once per change-detection pass). Reads `i18n.lang()` so a
+   * language switch still refreshes the label.
+   */
+  private readonly due = computed(() => {
+    const task = this.taskSig();
+    const lang = this.i18n.lang();
+    const status: DueStatus = task ? computeDueStatus(task.createdAt, task.dueDate) : 'none';
+    if (!task || !task.dueDate || status === 'none') {
+      return { status, isOverdue: false, label: '', long: '', aria: '' };
+    }
+    const label = computeDueLabel(task.dueDate, this.i18n);
+    const long = computeDueDateLong(task.dueDate, lang);
+    return {
+      status,
+      isOverdue: computeIsOverdue(task.dueDate),
+      label,
+      long,
+      aria: this.i18n.t('card.dueDate.aria').replace('{date}', long).replace('{label}', label),
+    };
+  });
+
+  get dueStatus(): DueStatus {
+    return this.due().status;
+  }
+
+  get isOverdue(): boolean {
+    return this.due().isOverdue;
+  }
+
+  get dueLabelText(): string {
+    return this.due().label;
+  }
+
+  get dueDateLong(): string {
+    return this.due().long;
+  }
+
+  get dueAriaLabel(): string {
+    return this.due().aria;
   }
 
   onStatusChange(event: Event) {

@@ -37,6 +37,7 @@ interface Row {
   status: string;
   priority: string;
   description: string | null;
+  due_date: string | null;
   position: number;
   created_at: string;
   updated_at: string;
@@ -62,6 +63,7 @@ class FakeTable {
       status: 'todo',
       priority: 'medium',
       description: null,
+      due_date: null,
       position: i + 1,
       created_at: 't0',
       updated_at: 't0',
@@ -128,6 +130,7 @@ class FakeQuery {
           status: 'todo',
           priority: 'medium',
           description: null,
+          due_date: null,
           position: 0,
           created_at: 't1',
           updated_at: 't1',
@@ -476,6 +479,55 @@ describe('TaskService', () => {
       ['2', 2],
       ['3', 3],
     ]);
+  });
+
+  // ── due_date ⇄ dueDate ─────────────────────────────────────────
+
+  it('maps due_date → dueDate on load and leaves it undefined when null', async () => {
+    table.seed([mkTask({ id: '1', due_date: '2026-10-01' }), mkTask({ id: '2', due_date: null })]);
+    await firstValueFrom(service.loadTasks());
+
+    const tasks = await firstValueFrom(service.tasks$);
+    expect(tasks[0].dueDate).toBe('2026-10-01');
+    expect(tasks[1].dueDate).toBeUndefined();
+  });
+
+  it('sends due_date on insert and maps it back on the created task', async () => {
+    const created = await firstValueFrom(
+      service.createTask({
+        title: 'With date',
+        status: 'todo',
+        priority: 'medium',
+        dueDate: '2026-12-24',
+      }),
+    );
+    expect(created.dueDate).toBe('2026-12-24');
+    expect(table.rows.at(-1)!.due_date).toBe('2026-12-24');
+  });
+
+  it('PATCHes due_date on update, and clears it with null', async () => {
+    table.seed([mkTask({ id: '1', due_date: '2026-10-01' })]);
+    await firstValueFrom(service.loadTasks());
+
+    await firstValueFrom(service.updateTask('1', { dueDate: '2026-11-15' }));
+    expect(table.updates.at(-1)!.payload).toEqual({ due_date: '2026-11-15' });
+
+    await firstValueFrom(service.updateTask('1', { dueDate: undefined }));
+    expect(table.updates.at(-1)!.payload).toEqual({ due_date: null });
+    expect((await firstValueFrom(service.tasks$))[0].dueDate).toBeUndefined();
+  });
+
+  it('round-trips a dueDate-bearing task through the localStorage cache', async () => {
+    table.seed([mkTask({ id: '1', due_date: '2027-01-05', title: 'Dated' })]);
+    await firstValueFrom(service.loadTasks());
+
+    const blob = JSON.parse(localStorage.getItem(tasksCacheKey('u1'))!);
+    expect(blob[0]).toMatchObject({ id: '1', dueDate: '2027-01-05' });
+
+    // Server now unavailable — the cached blob is re-seeded, dueDate intact.
+    table.failNext = true;
+    await firstValueFrom(service.loadTasks());
+    expect((await firstValueFrom(service.tasks$))[0].dueDate).toBe('2027-01-05');
   });
 
   // ── localStorage cache (stale-while-revalidate) ────────────────

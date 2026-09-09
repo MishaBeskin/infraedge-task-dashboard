@@ -114,6 +114,16 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'card.deleteConfirm': 'למחוק?',
     'card.deleteError': 'המחיקה נכשלה',
     'card.drag': 'גרור לשינוי סדר',
+    'card.dueDate.aria': 'תאריך יעד: {date} ({label})',
+
+    // Due-date badge labels
+    'due.today': 'היום',
+    'due.tomorrow': 'מחר',
+    'due.yesterday': 'אתמול',
+    'due.inDays': 'בעוד {n} ימים',
+    'due.overdueDays': 'באיחור של {n} ימים',
+    'due.inDaysDual': 'בעוד יומיים',
+    'due.overdueDaysDual': 'לפני יומיים',
 
     // Task dialog
     'dialog.title.create': 'משימה חדשה',
@@ -124,6 +134,8 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'dialog.field.title.required': 'יש להזין כותרת',
     'dialog.field.description': 'תיאור · אופציונלי',
     'dialog.field.description.placeholder': 'תיאור המשימה...',
+    'dialog.field.dueDate': 'תאריך יעד · אופציונלי',
+    'dialog.field.dueDate.clear': 'נקה תאריך יעד',
     'dialog.field.status': 'סטטוס',
     'dialog.field.priority': 'עדיפות',
     'dialog.cancel': 'ביטול',
@@ -248,6 +260,16 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'card.deleteConfirm': 'Delete?',
     'card.deleteError': 'Delete failed',
     'card.drag': 'Drag to reorder',
+    'card.dueDate.aria': 'Due date: {date} ({label})',
+
+    // Due-date badge labels
+    'due.today': 'today',
+    'due.tomorrow': 'tomorrow',
+    'due.yesterday': 'yesterday',
+    'due.inDays': 'in {n} days',
+    'due.overdueDays': '{n} days overdue',
+    'due.inDaysDual': 'in 2 days',
+    'due.overdueDaysDual': '2 days overdue',
 
     // Task dialog
     'dialog.title.create': 'New task',
@@ -258,6 +280,8 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'dialog.field.title.required': 'Please enter a title',
     'dialog.field.description': 'Description · optional',
     'dialog.field.description.placeholder': 'Task description...',
+    'dialog.field.dueDate': 'Due date · optional',
+    'dialog.field.dueDate.clear': 'Clear due date',
     'dialog.field.status': 'Status',
     'dialog.field.priority': 'Priority',
     'dialog.cancel': 'Cancel',

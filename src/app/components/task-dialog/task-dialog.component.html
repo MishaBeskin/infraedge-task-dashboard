@@ -35,6 +35,23 @@
       </div>
 
       <div class="field">
+        <label for="task-due">{{ i18n.t('dialog.field.dueDate') }}</label>
+        <div class="date-field" dir="ltr">
+          <input id="task-due" #dueInput type="date" formControlName="dueDate" />
+          @if (form.value.dueDate) {
+            <button
+              type="button"
+              class="date-clear"
+              (click)="clearDueDate()"
+              [attr.aria-label]="i18n.t('dialog.field.dueDate.clear')"
+            >
+              ✕
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="field">
         <label for="task-status">{{ i18n.t('dialog.field.status') }}</label>
         <select id="task-status" formControlName="status">
           <option value="todo">{{ i18n.t('status.todo') }}</option>

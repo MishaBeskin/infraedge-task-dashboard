@@ -12,6 +12,7 @@ interface TaskRow {
   status: Status;
   priority: Priority;
   description: string | null;
+  due_date: string | null;
   position: number;
   created_at: string;
   updated_at: string;
@@ -24,6 +25,7 @@ const fromRow = (r: TaskRow): Task => ({
   status: r.status,
   priority: r.priority,
   description: r.description ?? undefined,
+  dueDate: r.due_date ?? undefined,
   position: r.position,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -36,6 +38,7 @@ const toRow = (patch: TaskPatch): Record<string, unknown> => {
   if (patch.priority !== undefined) row['priority'] = patch.priority;
   if (patch.position !== undefined) row['position'] = patch.position;
   if ('description' in patch) row['description'] = patch.description ?? null;
+  if ('dueDate' in patch) row['due_date'] = patch.dueDate ?? null;
   return row;
 };
 
@@ -287,6 +290,7 @@ export class TaskService {
         status: input.status,
         priority: input.priority,
         description: input.description ?? null,
+        due_date: input.dueDate ?? null,
         position,
       })
       .select()

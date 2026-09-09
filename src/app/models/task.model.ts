@@ -12,6 +12,8 @@ export interface Task {
   status: 'todo' | 'in-progress' | 'done';
   priority: 'high' | 'medium' | 'low';
   description?: string;
+  /** Optional due date, ISO `YYYY-MM-DD` (date only, no time). */
+  dueDate?: string;
   /** Sort order within a status column. */
   position: number;
   createdAt: string;
@@ -22,11 +24,12 @@ export interface Task {
  *  database (default auth.uid()); `position` is assigned by TaskService. */
 export type NewTask = Pick<Task, 'title' | 'status' | 'priority'> & {
   description?: string;
+  dueDate?: string;
 };
 
 /** Fields the client may change on an existing task. */
 export type TaskPatch = Partial<
-  Pick<Task, 'title' | 'description' | 'status' | 'priority' | 'position'>
+  Pick<Task, 'title' | 'description' | 'status' | 'priority' | 'position' | 'dueDate'>
 >;
 
 export type Priority = Task['priority'];

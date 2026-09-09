@@ -11,6 +11,21 @@
   --priority-low: #888780;
   --radius: 10px;
   --avatar-bg: #e8ddd5;
+
+  // Due-date badge palette — darkened from --priority-* so each `text` clears
+  // WCAG AA as label text on its own `fill`.
+  --due-green-text: #1e7a34;
+  --due-green-fill: #e6f4e9;
+  --due-green-border: #bfe3c8;
+  --due-yellow-text: #7a5c00;
+  --due-yellow-fill: #fcf2d0;
+  --due-yellow-border: #ebd79a;
+  --due-orange-text: #a24500;
+  --due-orange-fill: #fdeee0;
+  --due-orange-border: #f3cda8;
+  --due-red-text: #b3201f;
+  --due-red-fill: #fbe9e8;
+  --due-red-border: #f1c4c2;
 }
 
 [data-theme='dark'] {
@@ -21,6 +36,21 @@
   --text-muted: #6b7280;
   --avatar-bg: #1e2540;
   color-scheme: dark;
+
+  // Due-date badge palette — darkened/lifted from --priority-* to clear WCAG AA
+  // as label text on the dark fill.
+  --due-green-text: #86dda0;
+  --due-green-fill: #18271d;
+  --due-green-border: #2e4a38;
+  --due-yellow-text: #ebcb6e;
+  --due-yellow-fill: #2a2614;
+  --due-yellow-border: #4a4327;
+  --due-orange-text: #f3aa68;
+  --due-orange-fill: #2a1d13;
+  --due-orange-border: #4a3722;
+  --due-red-text: #f5928f;
+  --due-red-fill: #2a1717;
+  --due-red-border: #4a2a2a;
 }
 
 // Responsive breakpoints live in src/styles/_breakpoints.scss and are @use'd from

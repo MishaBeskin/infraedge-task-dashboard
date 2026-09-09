@@ -33,6 +33,7 @@ function mountCreate(attach = false) {
   fixture.componentInstance.form.setValue({
     title: 'A title',
     description: '',
+    dueDate: '',
     status: 'todo',
     priority: 'medium',
   });
@@ -110,6 +111,32 @@ describe('TaskDialogComponent', () => {
     );
 
     expect(closed).toBe(true);
+  });
+
+  it('passes dueDate through on submit, and omits it when empty', () => {
+    const fixture = mountCreate();
+    const comp = fixture.componentInstance;
+
+    comp.submit();
+    expect(svc.createTask).toHaveBeenLastCalledWith(
+      expect.objectContaining({ dueDate: undefined }),
+    );
+
+    comp.form.controls.dueDate.setValue('2026-12-24');
+    comp.submit();
+    expect(svc.createTask).toHaveBeenLastCalledWith(
+      expect.objectContaining({ dueDate: '2026-12-24' }),
+    );
+  });
+
+  it('clearDueDate() empties the control', () => {
+    const fixture = mountCreate();
+    const comp = fixture.componentInstance;
+    comp.form.controls.dueDate.setValue('2026-12-24');
+
+    comp.clearDueDate();
+
+    expect(comp.form.controls.dueDate.value).toBe('');
   });
 
   it('exposes aria-pressed on the priority buttons for the selected priority', () => {
