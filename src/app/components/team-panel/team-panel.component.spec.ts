@@ -138,6 +138,19 @@ describe('TeamPanelComponent', () => {
     expect(comp['error']()).toBe('teamPanel.invite.error.noAccount');
   });
 
+  it('on email_failed shows the fallback message and re-reads invitations', () => {
+    const { comp, team } = mount('owner');
+    team.inviteByEmail.mockReturnValueOnce({
+      subscribe: (o: { error: (e: unknown) => void }) => o.error(new Error('email_failed')),
+    } as never);
+    team.loadInvitations.mockClear();
+    comp.form.controls.email.setValue('x@y.co');
+    comp.inviteByEmail();
+
+    expect(comp['error']()).toBe('teamPanel.invite.error.emailFailed');
+    expect(team.loadInvitations).toHaveBeenCalled(); // copy-link row will appear
+  });
+
   it('shows a copy-link button on a pending email invite', () => {
     const team = new FakeTeamService();
     team.loadInvitations = vi.fn(() =>

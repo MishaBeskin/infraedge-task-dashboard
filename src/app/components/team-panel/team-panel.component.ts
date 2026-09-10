@@ -148,7 +148,14 @@ export class TeamPanelComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: (err) => {
         this.busy.set(false);
-        this.error.set(this.mapInviteError(err));
+        const key = this.mapInviteError(err);
+        this.error.set(key);
+        // The invitation row was created; only the email bounced. Show its
+        // copy-link row so the owner can still deliver the link by hand.
+        if (key === 'teamPanel.invite.error.emailFailed') {
+          this.form.reset({ email: '' });
+          this.refreshInvites();
+        }
       },
     });
   }
@@ -293,6 +300,7 @@ export class TeamPanelComponent implements OnInit, AfterViewInit, OnDestroy {
     if (/already_member/.test(msg)) return 'teamPanel.invite.error.alreadyMember';
     if (/already_invited/.test(msg)) return 'teamPanel.invite.email.alreadyInvited';
     if (/not_owner/.test(msg)) return 'teamPanel.error.notOwner';
+    if (/email_failed/.test(msg)) return 'teamPanel.invite.error.emailFailed';
     return 'teamPanel.error.generic';
   }
 

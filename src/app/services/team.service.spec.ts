@@ -39,6 +39,8 @@ class FakeClient {
   deletes: Array<{ table: string; filters: [string, unknown][] }> = [];
   rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
   rpcResult: { data: unknown; error: unknown } = { data: null, error: null };
+  fnCalls: Array<{ name: string; body: unknown }> = [];
+  fnResult: { data: unknown; error: unknown } = { data: { ok: true, token: 'tok' }, error: null };
   failNext = false;
 
   from(table: string) {
@@ -51,6 +53,13 @@ class FakeClient {
     this.failNext = false;
     return Promise.resolve(res);
   }
+
+  functions = {
+    invoke: (name: string, opts: { body: unknown }) => {
+      this.fnCalls.push({ name, body: opts.body });
+      return Promise.resolve(this.fnResult);
+    },
+  };
 }
 
 class FakeQ {
@@ -288,13 +297,19 @@ describe('TeamService', () => {
 
   // ── RPC wrappers ─────────────────────────────────────────────────
 
-  it('inviteByEmail calls the invite_to_team RPC with the right args', async () => {
+  it('inviteByEmail invokes the send-team-invite function with the right body', async () => {
     const svc = make();
     await firstValueFrom(svc.inviteByEmail('t1', 'x@y.co', 'member'));
-    expect(client.rpcCalls.at(-1)).toEqual({
-      fn: 'invite_to_team',
-      args: { p_team_id: 't1', p_email: 'x@y.co', p_role: 'member' },
+    expect(client.fnCalls.at(-1)).toEqual({
+      name: 'send-team-invite',
+      body: { teamId: 't1', email: 'x@y.co', role: 'member' },
     });
+  });
+
+  it('inviteByEmail throws the function error code (e.g. email_failed) for the panel to map', async () => {
+    const svc = make();
+    client.fnResult = { data: { ok: false, error: 'email_failed', token: 'tk' }, error: null };
+    await expect(firstValueFrom(svc.inviteByEmail('t1', 'x@y.co'))).rejects.toThrow('email_failed');
   });
 
   it('acceptInvite calls accept_invitation, reloads teams and activates the returned team', async () => {

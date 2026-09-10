@@ -99,8 +99,14 @@ All access goes through `SupabaseService` (owns the single `SupabaseClient`).
   `name`. `profiles.board_name` is **deprecated** — the team name replaces it
   (kept only for the `0004` data migration; `BoardSettingsService` is gone).
 - Schema: run `supabase/migrations/0001_init.sql`, then `0002_board_name.sql`,
-  `0003_due_date.sql`, `0004_teams.sql` (in order), then `supabase/seed.sql`
-  (fallback `scripts/create-users.mjs`).
+  `0003_due_date.sql`, `0004_teams.sql`, `0005_invite_token.sql` (in order),
+  then `supabase/seed.sql` (fallback `scripts/create-users.mjs`).
+- `supabase/functions/send-team-invite/` (Pass B, Option C): Deno Edge Function
+  that emails the invite link via the **SendGrid HTTP API**. `0005` makes
+  `invite_to_team` return the token it needs. Secrets: `SENDGRID_API_KEY`,
+  `SITE_URL`, optional `SENDGRID_FROM_EMAIL` / `SENDGRID_FROM_NAME`
+  (`SUPABASE_URL` / `SUPABASE_ANON_KEY` are auto-injected). Deploy with the
+  Supabase CLI or the dashboard function editor.
 
 ## File structure to create
 
@@ -310,12 +316,16 @@ membership edit (the DB trigger nulls the removed member's `assignee_id`).
 - Members roster from `TeamService.members()`; the current user's row is tagged
   "אני". Owner gets a per-row remove (two-click arm/confirm) on non-owner,
   non-self rows → `removeMember` then `loadActiveMembers()`.
-- Owner-only invite section. **No email is sent** — every invite (email or link)
-  is a `team_invitations` row the owner copies the `/invite/<token>` URL from and
-  shares by hand; the section says so. Email invite (`inviteByEmail`, trims +
-  normalises before `Validators.email`; RPC errors → `teamPanel.invite.error.*`)
-  and one shareable link (`createLinkInvite`). Every pending row (email + link)
-  shows a copy-link button (`copiedToken` tracks which one) + revoke.
+- Owner-only invite section. Email invite (`inviteByEmail`, trims + normalises
+  before `Validators.email`) goes through the **`send-team-invite` Edge
+  Function** (SendGrid) — it calls `invite_to_team` then emails a
+  `/invite/<token>` link. The function always returns 200 with
+  `{ ok, error?, token? }`; `error: 'email_failed'` means the invite row exists
+  but the mail bounced, so the panel still refreshes the list to show the
+  copy-link fallback. Errors map to `teamPanel.invite.error.*`. Also one
+  shareable link (`createLinkInvite`, no email). Every pending row (email + link)
+  shows a copy-link button (`copiedToken` tracks which one) + revoke — the
+  manual fallback if mail delivery is unavailable.
 - Footer "danger zone": "Leave team" (everyone) + "Delete team" (owner,
   two-click). Both disabled — with a tooltip — when it's the caller's only team;
   the `leave_team` / `delete_team` RPCs enforce the same guard server-side.

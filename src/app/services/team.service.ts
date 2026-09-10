@@ -241,14 +241,30 @@ export class TeamService {
     return from(this.insertLinkInvite(teamId, role));
   }
 
+  /**
+   * Emails a join link. Goes through the `send-team-invite` Edge Function, which
+   * calls the `invite_to_team` RPC (owner / no_account / already_member /
+   * already_invited checks) and then SendGrid. The function always answers 200
+   * with `{ ok, error?, token? }` so the outcome is in `data`, not the HTTP
+   * status: `error: 'email_failed'` means the invitation row exists but the mail
+   * bounced — the caller should fall back to the copy-link UI. Throws an
+   * `Error(<code>)` the panel maps to a `teamPanel.invite.error.*` key.
+   */
   inviteByEmail(teamId: string, email: string, role: TeamRole = 'member'): Observable<void> {
     return from(
-      this.supabase.rpc('invite_to_team', {
-        p_team_id: teamId,
-        p_email: email,
-        p_role: role,
+      this.supabase.functions.invoke('send-team-invite', {
+        body: { teamId, email, role },
       }),
-    ).pipe(map((res) => this.unwrap(res)));
+    ).pipe(
+      map((res) => {
+        const r = res as {
+          data: { ok?: boolean; error?: string } | null;
+          error: unknown;
+        };
+        if (r.error) throw r.error;
+        if (!r.data?.ok) throw new Error(r.data?.error ?? 'invite_failed');
+      }),
+    );
   }
 
   revokeInvite(id: string): Observable<void> {
