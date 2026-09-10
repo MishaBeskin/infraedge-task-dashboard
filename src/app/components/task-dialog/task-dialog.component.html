@@ -63,11 +63,22 @@
       <div class="field">
         <label for="task-assignee">{{ i18n.t('dialog.field.assignee') }}</label>
         <select id="task-assignee" formControlName="assigneeId">
-          <option value="">{{ i18n.t('dialog.field.assignee.unassigned') }}</option>
-          @for (m of members(); track m.userId) {
-            <option [value]="m.userId">{{ m.name || m.userId }}</option>
+          @if (assigneeLocked) {
+            <option [value]="task?.assigneeId">{{ lockedAssigneeName }}</option>
+          } @else {
+            <option value="">{{ i18n.t('dialog.field.assignee.unassigned') }}</option>
+            @if (isOwner()) {
+              @for (m of members(); track m.userId) {
+                <option [value]="m.userId">{{ m.name || m.userId }}</option>
+              }
+            } @else {
+              <option [value]="myId">{{ myName }}</option>
+            }
           }
         </select>
+        @if (!isOwner()) {
+          <span class="field-hint">{{ i18n.t('dialog.field.assignee.memberHint') }}</span>
+        }
       </div>
 
       <div class="field">

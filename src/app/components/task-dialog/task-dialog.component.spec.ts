@@ -4,6 +4,7 @@ import { Subject } from 'rxjs';
 import { TaskDialogComponent } from './task-dialog.component';
 import { TaskService } from '../../services/task.service';
 import { TeamService } from '../../services/team.service';
+import { AuthService } from '../../services/auth.service';
 import { Task } from '../../models/task.model';
 
 class FakeTaskService {
@@ -26,7 +27,23 @@ class FakeTeamService {
     { userId: 'u1', name: 'Alice Doe', email: '', role: 'owner' },
     { userId: 'u2', name: 'Bob Roe', email: '', role: 'member' },
   ]);
+  activeTeam = signal<{ id: string; name: string; role: 'owner' | 'member' } | null>({
+    id: 't1',
+    name: 'Alpha',
+    role: 'owner',
+  });
   loadActiveMembers = vi.fn();
+}
+
+class FakeAuthService {
+  user: { id: string; email: string; name: string } | null = {
+    id: 'u1',
+    email: 'alice@x.co',
+    name: 'Alice Doe',
+  };
+  getCurrentUser() {
+    return this.user;
+  }
 }
 
 const attached: HTMLElement[] = [];
@@ -53,13 +70,18 @@ function mountCreate(attach = false) {
 
 describe('TaskDialogComponent', () => {
   let svc: FakeTaskService;
+  let team: FakeTeamService;
+  let auth: FakeAuthService;
 
   beforeEach(() => {
     svc = new FakeTaskService();
+    team = new FakeTeamService();
+    auth = new FakeAuthService();
     TestBed.configureTestingModule({
       providers: [
         { provide: TaskService, useValue: svc },
-        { provide: TeamService, useValue: new FakeTeamService() },
+        { provide: TeamService, useValue: team },
+        { provide: AuthService, useValue: auth },
       ],
     });
   });
@@ -166,5 +188,75 @@ describe('TaskDialogComponent', () => {
       group.querySelectorAll('.priority-btn') as NodeListOf<HTMLElement>,
     ).map((b) => b.getAttribute('aria-pressed'));
     expect(pressed).toEqual(['true', 'false', 'false']);
+  });
+
+  // ── Assignee permissions ─────────────────────────────────────────
+
+  const editTask: Task = {
+    id: 'k1',
+    title: 'T',
+    status: 'todo',
+    priority: 'medium',
+    position: 1,
+    teamId: 't1',
+    assigneeId: null,
+    createdAt: 't',
+    updatedAt: 't',
+  };
+
+  function mountEdit(task: Task) {
+    const fixture = TestBed.createComponent(TaskDialogComponent);
+    fixture.componentRef.setInput('mode', 'edit');
+    fixture.componentRef.setInput('task', task);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('an owner sees every team member as an assignee option', () => {
+    team.activeTeam.set({ id: 't1', name: 'Alpha', role: 'owner' });
+    const opts = mountEdit(editTask).nativeElement.querySelectorAll('#task-assignee option');
+    // "Unassigned" + u1 + u2
+    expect(opts.length).toBe(3);
+  });
+
+  it('a member only gets "unassigned" and themselves', () => {
+    team.activeTeam.set({ id: 't1', name: 'Alpha', role: 'member' });
+    auth.user = { id: 'u2', email: 'bob@x.co', name: 'Bob Roe' };
+    const fixture = mountEdit(editTask);
+    const opts = fixture.nativeElement.querySelectorAll('#task-assignee option');
+    expect(opts.length).toBe(2);
+    expect(opts[1].value).toBe('u2');
+    expect(fixture.nativeElement.querySelector('.field-hint')).toBeTruthy();
+  });
+
+  it('a member cannot touch a task assigned to someone else: field disabled, patch omits assigneeId', () => {
+    team.activeTeam.set({ id: 't1', name: 'Alpha', role: 'member' });
+    auth.user = { id: 'u2', email: 'bob@x.co', name: 'Bob Roe' };
+    const fixture = mountEdit({ ...editTask, assigneeId: 'u1' });
+    const comp = fixture.componentInstance;
+
+    expect(comp['assigneeLocked']).toBe(true);
+    expect(comp.form.controls.assigneeId.disabled).toBe(true);
+
+    comp.form.controls.title.setValue('renamed');
+    comp.submit();
+    expect(svc.updateTask).toHaveBeenLastCalledWith(
+      'k1',
+      expect.not.objectContaining({ assigneeId: expect.anything() }),
+    );
+  });
+
+  it('a member self-assigning sends assigneeId = their uid', () => {
+    team.activeTeam.set({ id: 't1', name: 'Alpha', role: 'member' });
+    auth.user = { id: 'u2', email: 'bob@x.co', name: 'Bob Roe' };
+    const fixture = mountEdit(editTask);
+    const comp = fixture.componentInstance;
+
+    comp.form.controls.assigneeId.setValue('u2');
+    comp.submit();
+    expect(svc.updateTask).toHaveBeenLastCalledWith(
+      'k1',
+      expect.objectContaining({ assigneeId: 'u2' }),
+    );
   });
 });

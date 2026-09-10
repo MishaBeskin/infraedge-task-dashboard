@@ -98,9 +98,16 @@ All access goes through `SupabaseService` (owns the single `SupabaseClient`).
 - `profiles` table: one row per user (auto-created by `handle_new_user`), holds
   `name`. `profiles.board_name` is **deprecated** — the team name replaces it
   (kept only for the `0004` data migration; `BoardSettingsService` is gone).
+- `assignee_id` writes are gated by the `tasks_enforce_assignee` BEFORE
+  INSERT/UPDATE trigger (`0006`): a team **owner** sets it freely; a plain
+  **member** may only move it between `NULL` and their own uid. Anything else
+  raises `assignee_forbidden`. (`unassign_removed_member` from `0004` still works
+  — the owner removing someone is `is_team_owner`; a member leaving only clears
+  their own uid.)
 - Schema: run `supabase/migrations/0001_init.sql`, then `0002_board_name.sql`,
-  `0003_due_date.sql`, `0004_teams.sql`, `0005_invite_token.sql` (in order),
-  then `supabase/seed.sql` (fallback `scripts/create-users.mjs`).
+  `0003_due_date.sql`, `0004_teams.sql`, `0005_invite_token.sql`,
+  `0006_assignee_permission.sql` (in order), then `supabase/seed.sql` (fallback
+  `scripts/create-users.mjs`).
 - `supabase/functions/send-team-invite/` (Pass B, Option C): Deno Edge Function
   that emails the invite link via the **SendGrid HTTP API**. `0005` makes
   `invite_to_team` return the token it needs. Secrets: `SENDGRID_API_KEY`,
@@ -300,6 +307,12 @@ Fields (ReactiveFormsModule):
 - אחראי: native select, "ללא אחראי" + one option per active-team member
   (`TeamService.members()`); the dialog calls `loadActiveMembers()` on open.
   Submits `assigneeId` (empty → `null`) in the create/update patch.
+  **Owner vs member:** only a team owner sees the full roster. A plain member
+  gets just "ללא אחראי" + themselves (self-assign / self-unassign); editing a
+  task already assigned to someone else, the control is `disable()`d and the
+  patch omits `assigneeId` entirely. Enforced server-side by the
+  `tasks_enforce_assignee` trigger (`0006`) — a member-issued change of
+  `assignee_id` to/from anyone but themselves raises `assignee_forbidden`.
 - עדיפות: 3-button pill toggle (גבוהה/בינונית/נמוכה), default בינונית, selected = dark filled
 
 Footer: "POST /tasks" hint on right, ביטול + "צור משימה" buttons on left.
@@ -352,10 +365,14 @@ On init:
 State:
 
 - priorityFilter: signal<'all'|'high'|'medium'|'low'>('all')
+- assigneeFilter: signal<string>('all') — 'all' | 'me' | '<userId>'. Client-only
+  (RLS already gives every member all team tasks). Reset to 'all' by the
+  team-change effect.
 - searchQuery: signal<string>('')
 - showDialog: boolean
 - dialogStatus: signal<Status>('todo')
-- filtered: Task[] — derived by applying both filters to the tasks array
+- filtered: Task[] — derived by AND-composing priority + assignee + search over
+  the tasks array
 
 Computed column arrays (getters):
 
@@ -366,7 +383,9 @@ Computed column arrays (getters):
 Template:
 
 - <app-header> with taskCount and addTask handler
-- Toolbar: search input (right), priority filter pill buttons (left) — הכל/גבוהה/בינונית/נמוכה
+- Toolbar: search input (right), priority filter pill buttons + an assignee
+  filter `<select>` (הכל/גבוהה/בינונית/נמוכה pills, then a native select: כל
+  המשימות / המשימות שלי / one option per other team member)
 - @if loading: skeleton (3 columns, each with sk-header + 2 sk-card divs, shimmer animation)
 - @else if error: red error banner
 - @else: 3 <app-kanban-column> components in a flex row

@@ -5,6 +5,7 @@ import { BehaviorSubject, of } from 'rxjs';
 import { BoardComponent } from './board.component';
 import { TaskService } from '../../services/task.service';
 import { TeamService } from '../../services/team.service';
+import { AuthService } from '../../services/auth.service';
 import { Task, Status } from '../../models/task.model';
 import { Team } from '../../models/team.model';
 
@@ -57,6 +58,10 @@ function setup(tasks: Task[]) {
       provideRouter([]),
       { provide: TaskService, useValue: svc },
       { provide: TeamService, useValue: team },
+      {
+        provide: AuthService,
+        useValue: { getCurrentUser: () => ({ id: 'u1', name: 'Me', email: 'me@x.co' }) },
+      },
     ],
   });
   const fixture = TestBed.createComponent(BoardComponent);
@@ -80,6 +85,37 @@ describe('BoardComponent', () => {
     expect(comp.todoTasks().map((t) => t.id)).toEqual(['1']);
     expect(comp.inProgressTasks().map((t) => t.id)).toEqual(['3']);
     expect(comp.doneTasks().map((t) => t.id)).toEqual(['5']);
+  });
+
+  it('assignee filter: me / a specific member, AND-composed with priority', () => {
+    const { comp } = setup([
+      { ...mk('1', 'mine', 'todo', 'high', 1), assigneeId: 'u1' },
+      { ...mk('2', 'theirs', 'todo', 'high', 2), assigneeId: 'u2' },
+      { ...mk('3', 'nobody', 'todo', 'high', 3), assigneeId: null },
+      { ...mk('4', 'mine low', 'todo', 'low', 4), assigneeId: 'u1' },
+    ]);
+
+    comp.setAssigneeFilter('me'); // current user is u1
+    expect(comp.todoTasks().map((t) => t.id)).toEqual(['1', '4']);
+
+    comp.setAssigneeFilter('u2');
+    expect(comp.todoTasks().map((t) => t.id)).toEqual(['2']);
+
+    comp.setAssigneeFilter('me');
+    comp.setPriorityFilter('high');
+    expect(comp.todoTasks().map((t) => t.id)).toEqual(['1']);
+  });
+
+  it('resets the assignee filter when the active team changes', () => {
+    const { comp, team, fixture } = setup([]);
+    fixture.detectChanges();
+    comp.setAssigneeFilter('u2');
+    expect(comp.assigneeFilter()).toBe('u2');
+
+    team.activeTeamId.set('t2');
+    fixture.detectChanges();
+
+    expect(comp.assigneeFilter()).toBe('all');
   });
 
   it('orders each column by position, not by array order', () => {

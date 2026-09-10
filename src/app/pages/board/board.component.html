@@ -54,6 +54,24 @@
         <span class="pill-dot"></span>{{ i18n.t('priority.low') }}
       </button>
     </div>
+
+    <label class="assignee-filter">
+      <span class="filter-label">{{ i18n.t('board.assignee') }}</span>
+      <select
+        class="assignee-filter__select"
+        [value]="assigneeFilter()"
+        (change)="setAssigneeFilter($any($event.target).value)"
+        [attr.aria-label]="i18n.t('board.assignee')"
+      >
+        <option value="all">{{ i18n.t('board.assignee.all') }}</option>
+        <option value="me">{{ i18n.t('board.assignee.me') }}</option>
+        @for (m of members(); track m.userId) {
+          @if (m.userId !== myId) {
+            <option [value]="m.userId">{{ m.name || m.userId }}</option>
+          }
+        }
+      </select>
+    </label>
   </div>
 
   <!-- INLINE-END (visual left in RTL): search -->

@@ -66,6 +66,29 @@
   gap: 0.375rem;
 }
 
+.assignee-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  &__select {
+    padding: 0.375rem 0.625rem;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.825rem;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+    max-inline-size: 12rem;
+
+    &:focus {
+      border-color: var(--brand);
+    }
+  }
+}
+
 .pill-btn {
   display: flex;
   align-items: center;
