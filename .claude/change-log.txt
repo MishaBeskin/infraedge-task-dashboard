@@ -643,3 +643,6 @@
 2026-09-10 12:01:01 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\pages\board\board.component.spec.ts
 2026-09-10 12:01:09 C:\Develop\InfraEdge\infraedge-task-dashboard\CLAUDE.md
 2026-09-10 12:01:15 C:\Develop\InfraEdge\infraedge-task-dashboard\CLAUDE.md
+2026-09-11 13:11:42 C:\Develop\InfraEdge\infraedge-task-dashboard\docs\agents\issue-tracker.md
+2026-09-11 13:11:49 C:\Develop\InfraEdge\infraedge-task-dashboard\docs\agents\domain.md
+2026-09-11 13:11:56 C:\Develop\InfraEdge\infraedge-task-dashboard\CLAUDE.md

@@ -428,3 +428,13 @@ npm start   # ng serve on :4200 — that's the whole dev loop now
 first: if env vars `SUPABASE_URL` and `SUPABASE_ANON_KEY` are both set it
 rewrites `src/environments/environment.prod.ts` from them, otherwise the
 committed file is used. A bare `ng build` skips the script.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues in this repo; skills use the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context layout (`CONTEXT.md` + `docs/adr/` at the repo root, created lazily by `/domain-modeling`). See `docs/agents/domain.md`.
