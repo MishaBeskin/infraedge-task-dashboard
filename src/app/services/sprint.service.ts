@@ -121,9 +121,15 @@ export class SprintService {
   }
 
   /** Flips the team's currently active sprint (if any, and if it isn't `id`)
-   *  to `'planned'` first, then activates `id` — sequenced so the partial
-   *  unique index on `sprints (team_id) where status = 'active'` never sees
-   *  two active rows at once. Optimistic with revert. */
+   *  to `'planned'` and activates `id` — both flips happen in a single
+   *  `set_active_sprint` RPC transaction server-side (see
+   *  `0008_set_active_sprint.sql`), so the partial unique index on
+   *  `sprints (team_id) where status = 'active'` never sees two active rows
+   *  at once, and a failure can't leave the DB in a state the optimistic
+   *  local update didn't already predict (no more "first write succeeded,
+   *  second failed" straddle — it's one all-or-nothing call). Also closes the
+   *  race between two members activating different sprints concurrently, which
+   *  the old two-step client sequencing couldn't. Optimistic with revert. */
   setActiveSprint(id: string): Observable<void> {
     const teamId = this.teamService.activeTeamId();
     if (!teamId) return of(undefined);
@@ -139,12 +145,10 @@ export class SprintService {
       }),
     );
 
-    const write = async () => {
-      if (current) await this.updateRow(current.id, { status: 'planned' });
-      await this.updateRow(id, { status: 'active' });
-    };
-
-    return from(write()).pipe(
+    return from(
+      this.supabase.rpc('set_active_sprint', { p_team_id: teamId, p_sprint_id: id }),
+    ).pipe(
+      map((res) => this.unwrap(res)),
       catchError((err) => {
         this.setSprints(teamId, snapshot);
         return throwError(() => err);
@@ -248,6 +252,11 @@ export class SprintService {
       if ('status' in row) next.status = row['status'] as SprintStatus;
       return next;
     });
+  }
+
+  private unwrap(res: unknown): void {
+    const r = res as { error: unknown };
+    if (r && r.error) throw r.error;
   }
 
   private setSprints(teamId: string, sprints: Sprint[]): void {

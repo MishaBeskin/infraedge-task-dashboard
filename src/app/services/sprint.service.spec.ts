@@ -48,6 +48,9 @@ class FakeClient {
   private seq = 100;
   failNext = false;
   updates: Array<{ id: unknown; payload: Record<string, unknown> }> = [];
+  rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
+  /** When set, `rpc()` fails with this instead of consulting `failNext`. */
+  failRpc: string | null = null;
 
   nextId(): string {
     return String(++this.seq);
@@ -69,6 +72,31 @@ class FakeClient {
 
   from(_table: string) {
     return new FakeQuery(this);
+  }
+
+  /** Fakes `set_active_sprint`: same all-or-nothing semantics as the real RPC
+   *  — on success it flips both rows server-side in one shot, matching what a
+   *  single transaction would do; `failRpc` simulates the whole call failing
+   *  (nothing committed), which is the only failure mode left once the two
+   *  writes are one transaction. */
+  rpc(fn: string, args: Record<string, unknown>) {
+    this.rpcCalls.push({ fn, args });
+    if (this.failRpc === fn) {
+      this.failRpc = null;
+      return Promise.resolve({ data: null, error: { message: 'boom' } });
+    }
+    if (fn === 'set_active_sprint') {
+      const teamId = args['p_team_id'];
+      const sprintId = args['p_sprint_id'];
+      this.rows = this.rows.map((r) => {
+        if (r.team_id !== teamId) return r;
+        if (r.id === sprintId) return { ...r, status: 'active' };
+        if (r.status === 'active') return { ...r, status: 'planned' };
+        return r;
+      });
+      return Promise.resolve({ data: null, error: null });
+    }
+    return Promise.resolve({ data: null, error: null });
   }
 }
 
@@ -354,10 +382,12 @@ describe('SprintService', () => {
     await firstValueFrom(service.setActiveSprint('s1'));
 
     expect(service.sprints()[0].status).toBe('active');
-    expect(client.updates).toEqual([{ id: 's1', payload: { status: 'active' } }]);
+    expect(client.rpcCalls).toEqual([
+      { fn: 'set_active_sprint', args: { p_team_id: TEAM, p_sprint_id: 's1' } },
+    ]);
   });
 
-  it('flips the current active sprint to planned before activating the new one', async () => {
+  it('flips the current active sprint to planned and activates the new one in a single RPC call', async () => {
     service = make();
     client.seed([
       { id: 's1', status: 'active', position: 1 },
@@ -367,15 +397,14 @@ describe('SprintService', () => {
 
     await firstValueFrom(service.setActiveSprint('s2'));
 
-    expect(client.updates).toEqual([
-      { id: 's1', payload: { status: 'planned' } },
-      { id: 's2', payload: { status: 'active' } },
+    expect(client.rpcCalls).toEqual([
+      { fn: 'set_active_sprint', args: { p_team_id: TEAM, p_sprint_id: 's2' } },
     ]);
     expect(service.sprints().find((s) => s.id === 's1')?.status).toBe('planned');
     expect(service.sprints().find((s) => s.id === 's2')?.status).toBe('active');
   });
 
-  it('reverts both flips on failure', async () => {
+  it('reverts both flips on total RPC failure', async () => {
     service = make();
     client.seed([
       { id: 's1', status: 'active', position: 1 },
@@ -383,15 +412,46 @@ describe('SprintService', () => {
     ]);
     await firstValueFrom(service.loadSprints());
 
-    client.failNext = true;
+    client.failRpc = 'set_active_sprint';
     let errored = false;
     await new Promise<void>((resolve) => {
       service.setActiveSprint('s2').subscribe({ error: () => ((errored = true), resolve()) });
     });
 
     expect(errored).toBe(true);
+    // The RPC is one transaction — either both rows flip or neither does, so
+    // a failure never leaves a "nothing active" straddle: local state reverts
+    // exactly to what's still true in the DB.
     expect(service.sprints().find((s) => s.id === 's1')?.status).toBe('active');
     expect(service.sprints().find((s) => s.id === 's2')?.status).toBe('planned');
+  });
+
+  it('leaves the DB-side row set untouched on RPC failure, so reverted local state matches it', async () => {
+    // Regression guard for the pre-fix bug: the old two-step client
+    // sequencing could have write 1 (old sprint -> planned) succeed and write
+    // 2 (new sprint -> active) fail, leaving the DB with *no* active sprint
+    // while the client reverted to showing the *old* sprint as still active —
+    // a real client/server disagreement. `failRpc` fails the whole
+    // `set_active_sprint` call before it mutates `client.rows` at all (the
+    // fake's stand-in for a rolled-back transaction), so the DB-side truth
+    // still has exactly the one active sprint the reverted local state
+    // (asserted above) agrees with — that intermediate "nothing active" state
+    // is no longer reachable through the client.
+    service = make();
+    client.seed([
+      { id: 's1', status: 'active', position: 1 },
+      { id: 's2', status: 'planned', position: 2 },
+    ]);
+    await firstValueFrom(service.loadSprints());
+
+    client.failRpc = 'set_active_sprint';
+    await new Promise<void>((resolve) => {
+      service.setActiveSprint('s2').subscribe({ error: () => resolve() });
+    });
+
+    const activeInDb = client.rows.filter((r) => r.status === 'active');
+    expect(activeInDb).toHaveLength(1);
+    expect(activeInDb[0].id).toBe('s1');
   });
 
   // ── completeSprint / reopenSprint ────────────────────────────────
