@@ -43,6 +43,7 @@ interface Row {
   due_date: string | null;
   team_id: string;
   assignee_id: string | null;
+  sprint_id: string | null;
   position: number;
   created_at: string;
   updated_at: string;
@@ -71,6 +72,7 @@ class FakeTable {
       due_date: null,
       team_id: TEAM,
       assignee_id: null,
+      sprint_id: null,
       position: i + 1,
       created_at: 't0',
       updated_at: 't0',
@@ -140,6 +142,7 @@ class FakeQuery {
           due_date: null,
           team_id: TEAM,
           assignee_id: null,
+          sprint_id: null,
           position: 0,
           created_at: 't1',
           updated_at: 't1',
@@ -696,5 +699,25 @@ describe('TaskService', () => {
 
     await firstValueFrom(service.updateTask(created.id, { assigneeId: null }));
     expect(table.updates.at(-1)!.payload).toEqual({ assignee_id: null });
+  });
+
+  it('sends sprint_id on insert; sprint_id round-trips through update', async () => {
+    const created = await firstValueFrom(
+      service.createTask({
+        title: 'Sprint task',
+        status: 'todo',
+        priority: 'medium',
+        sprintId: 'sprint-1',
+      }),
+    );
+    expect(created.sprintId).toBe('sprint-1');
+    expect(table.rows.at(-1)).toMatchObject({ team_id: TEAM, sprint_id: 'sprint-1' });
+
+    const updated = await firstValueFrom(service.updateTask(created.id, { sprintId: 'sprint-2' }));
+    expect(updated.sprintId).toBe('sprint-2');
+    expect(table.updates.at(-1)!.payload).toEqual({ sprint_id: 'sprint-2' });
+
+    await firstValueFrom(service.updateTask(created.id, { sprintId: null }));
+    expect(table.updates.at(-1)!.payload).toEqual({ sprint_id: null });
   });
 });

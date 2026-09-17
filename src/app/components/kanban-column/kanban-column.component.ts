@@ -37,6 +37,9 @@ export class KanbanColumnComponent implements AfterViewInit, OnDestroy {
   @Input() title = '';
   @Input() tasks: Task[] = [];
   @Input({ required: true }) status!: Status;
+  /** Passed straight through to each card so its sprint chip can hide itself
+   *  when the board is already filtered to that exact sprint (§4). */
+  @Input() sprintFilter = 'all';
   @Output() addTask = new EventEmitter<Status>();
   @Output() editTask = new EventEmitter<Task>();
   @Output() taskDropped = new EventEmitter<TaskDropEvent>();

@@ -5,9 +5,11 @@ import { BehaviorSubject, of } from 'rxjs';
 import { BoardComponent } from './board.component';
 import { TaskService } from '../../services/task.service';
 import { TeamService } from '../../services/team.service';
+import { SprintService } from '../../services/sprint.service';
 import { AuthService } from '../../services/auth.service';
 import { Task, Status } from '../../models/task.model';
 import { Team } from '../../models/team.model';
+import { Sprint } from '../../models/sprint.model';
 
 const mk = (
   id: string,
@@ -49,15 +51,22 @@ class FakeTeamService {
   setActiveTeam = vi.fn((id: string) => this.activeTeamId.set(id));
 }
 
+class FakeSprintService {
+  sprints = signal<Sprint[]>([]);
+  loadSprints = vi.fn(() => of(undefined));
+}
+
 function setup(tasks: Task[]) {
   const svc = new FakeTaskService();
   const team = new FakeTeamService();
+  const sprint = new FakeSprintService();
   svc.tasks$.next(tasks);
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
       { provide: TaskService, useValue: svc },
       { provide: TeamService, useValue: team },
+      { provide: SprintService, useValue: sprint },
       {
         provide: AuthService,
         useValue: { getCurrentUser: () => ({ id: 'u1', name: 'Me', email: 'me@x.co' }) },
@@ -65,7 +74,7 @@ function setup(tasks: Task[]) {
     ],
   });
   const fixture = TestBed.createComponent(BoardComponent);
-  return { svc, team, comp: fixture.componentInstance, fixture };
+  return { svc, team, sprint, comp: fixture.componentInstance, fixture };
 }
 
 describe('BoardComponent', () => {
@@ -116,6 +125,36 @@ describe('BoardComponent', () => {
     fixture.detectChanges();
 
     expect(comp.assigneeFilter()).toBe('all');
+  });
+
+  it('sprint filter: backlog / a specific sprint, AND-composed with priority', () => {
+    const { comp } = setup([
+      { ...mk('1', 'in sprint', 'todo', 'high', 1), sprintId: 's1' },
+      { ...mk('2', 'other sprint', 'todo', 'high', 2), sprintId: 's2' },
+      { ...mk('3', 'backlog', 'todo', 'high', 3), sprintId: null },
+      { ...mk('4', 'in sprint low', 'todo', 'low', 4), sprintId: 's1' },
+    ]);
+
+    comp.setSprintFilter('backlog');
+    expect(comp.todoTasks().map((t) => t.id)).toEqual(['3']);
+
+    comp.setSprintFilter('s1');
+    expect(comp.todoTasks().map((t) => t.id)).toEqual(['1', '4']);
+
+    comp.setPriorityFilter('high');
+    expect(comp.todoTasks().map((t) => t.id)).toEqual(['1']);
+  });
+
+  it('resets the sprint filter when the active team changes', () => {
+    const { comp, team, fixture } = setup([]);
+    fixture.detectChanges();
+    comp.setSprintFilter('s1');
+    expect(comp.sprintFilter()).toBe('s1');
+
+    team.activeTeamId.set('t2');
+    fixture.detectChanges();
+
+    expect(comp.sprintFilter()).toBe('all');
   });
 
   it('orders each column by position, not by array order', () => {

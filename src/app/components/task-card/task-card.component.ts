@@ -12,6 +12,7 @@ import {
 import { Task } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
 import { TeamService } from '../../services/team.service';
+import { SprintService } from '../../services/sprint.service';
 import { I18nService } from '../../services/i18n.service';
 import { PointerDragService } from '../../services/pointer-drag.service';
 import {
@@ -45,8 +46,21 @@ export class TaskCardComponent implements OnDestroy {
 
   @Output() editTask = new EventEmitter<Task>();
 
+  /** The board's current sprint filter — drives the chip's hide rule (§4): the
+   *  chip is hidden exactly when the board is already filtered to this task's
+   *  sprint, since the column context already makes that redundant. */
+  private readonly sprintFilterSig = signal<string>('all');
+  @Input()
+  set sprintFilter(value: string) {
+    this.sprintFilterSig.set(value);
+  }
+  get sprintFilter(): string {
+    return this.sprintFilterSig();
+  }
+
   private taskService = inject(TaskService);
   private teamService = inject(TeamService);
+  private sprintService = inject(SprintService);
   protected i18n = inject(I18nService);
   private pointerDrag = inject(PointerDragService);
   private deleteTimer?: ReturnType<typeof setTimeout>;
@@ -132,6 +146,20 @@ export class TaskCardComponent implements OnDestroy {
           .toUpperCase()
       : '?';
     return { name, initials };
+  });
+
+  /**
+   * The task's sprint resolved against the active-team roster, or `null` when
+   * the task has no sprint, its sprint hasn't loaded, or the board is already
+   * filtered to that exact sprint (hide rule, §4).
+   */
+  readonly sprintChip = computed(() => {
+    const task = this.taskSig();
+    const sprintId = task?.sprintId;
+    if (!sprintId || this.sprintFilterSig() === sprintId) return null;
+    const sprint = this.sprintService.sprints().find((s) => s.id === sprintId);
+    if (!sprint) return null;
+    return { name: sprint.name, status: sprint.status };
   });
 
   onStatusChange(event: Event) {

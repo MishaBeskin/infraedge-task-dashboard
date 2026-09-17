@@ -19,6 +19,7 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Task, Status } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
 import { TeamService } from '../../services/team.service';
+import { SprintService } from '../../services/sprint.service';
 import { AuthService } from '../../services/auth.service';
 import { I18nService } from '../../services/i18n.service';
 
@@ -40,6 +41,7 @@ export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
   private fb = inject(FormBuilder);
   private taskService = inject(TaskService);
   private teamService = inject(TeamService);
+  private sprintService = inject(SprintService);
   private auth = inject(AuthService);
   private host = inject<ElementRef<HTMLElement>>(ElementRef);
   private doc = inject(DOCUMENT);
@@ -47,6 +49,10 @@ export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Active-team roster for the assignee select (Pass B). */
   protected readonly members = this.teamService.members;
+  /** Active-team sprints for the sprint select (Phase 3), ordered by position. */
+  protected readonly sprints = computed(() =>
+    [...this.sprintService.sprints()].sort((a, b) => a.position - b.position),
+  );
   /** Only a team owner may assign/unassign other members; a plain member may
    *  only pick themselves or "unassigned". Enforced server-side by the
    *  `tasks_enforce_assignee` trigger — this just shapes the UI. */
@@ -90,6 +96,7 @@ export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
     dueDate: [''],
     status: ['todo' as Status],
     priority: ['medium' as Task['priority']],
+    sprintId: [''],
     assigneeId: [''],
   });
 
@@ -106,6 +113,8 @@ export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Ensure the assignee <select> has an up-to-date roster to bind against.
     this.teamService.loadActiveMembers();
+    // Ensure the sprint <select> has an up-to-date list to bind against.
+    this.sprintService.loadSprints().subscribe();
 
     if (this.isEdit && this.task) {
       this.form.patchValue({
@@ -114,6 +123,7 @@ export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
         dueDate: this.task.dueDate ?? '',
         status: this.task.status,
         priority: this.task.priority,
+        sprintId: this.task.sprintId ?? '',
         assigneeId: this.task.assigneeId ?? '',
       });
     } else {
@@ -189,13 +199,14 @@ export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
       this.form.markAllAsTouched();
       return;
     }
-    const { title, description, dueDate, status, priority, assigneeId } = this.form.value;
+    const { title, description, dueDate, status, priority, sprintId, assigneeId } = this.form.value;
     const patch: {
       title: string;
       description?: string;
       dueDate?: string;
       status: Status;
       priority: Task['priority'];
+      sprintId?: string | null;
       assigneeId?: string | null;
     } = {
       title: title!,
@@ -203,6 +214,7 @@ export class TaskDialogComponent implements OnInit, AfterViewInit, OnDestroy {
       dueDate: dueDate || undefined,
       status: status!,
       priority: priority!,
+      sprintId: sprintId || null,
     };
     // Only send assigneeId when the caller was actually allowed to change it —
     // otherwise a disabled/omitted control would read as "unassign".

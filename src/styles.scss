@@ -27,6 +27,17 @@
   --due-red-fill: #fbe9e8;
   --due-red-border: #f1c4c2;
 
+  // Sprint status palette (sprint-chip, sprint-selector, sprint-panel).
+  --sprint-planned-text: #6b6a63;
+  --sprint-planned-fill: #f1efe9;
+  --sprint-planned-border: #e3ded2;
+  --sprint-active-text: var(--brand);
+  --sprint-active-fill: rgba(224, 90, 32, 0.08);
+  --sprint-active-border: rgba(224, 90, 32, 0.35);
+  --sprint-completed-text: var(--due-green-text);
+  --sprint-completed-fill: var(--due-green-fill);
+  --sprint-completed-border: var(--due-green-border);
+
   // Overlays / elevation / motion
   --overlay-scrim: rgba(0, 0, 0, 0.45);
   --elevation-modal: 0 8px 40px rgba(0, 0, 0, 0.18);
@@ -57,6 +68,14 @@
   --due-red-text: #f5928f;
   --due-red-fill: #2a1717;
   --due-red-border: #4a2a2a;
+
+  // Sprint status palette — dark. `--sprint-completed-*` inherits the
+  // dark `--due-green-*` redefined above; only planned/active need overrides.
+  --sprint-planned-text: #a9a79c;
+  --sprint-planned-fill: #23241f;
+  --sprint-planned-border: #3a3a33;
+  --sprint-active-fill: rgba(224, 90, 32, 0.14);
+  --sprint-active-border: rgba(224, 90, 32, 0.4);
 
   --overlay-scrim: rgba(0, 0, 0, 0.6);
   --elevation-modal: 0 8px 44px rgba(0, 0, 0, 0.5);

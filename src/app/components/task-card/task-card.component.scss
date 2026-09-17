@@ -50,8 +50,7 @@
   gap: 0.5rem;
 }
 
-// Touch drag grip. Hidden on fine pointers, where native HTML5 drag is used;
-// shown on coarse pointers, where it is the only way to pick up a card.
+// Touch drag grip — hidden on fine pointers (native HTML5 drag is used there).
 .drag-handle {
   display: none;
   flex-shrink: 0;
@@ -95,8 +94,7 @@
   margin: 0;
 }
 
-// Priority badge (inline-start) + optional due badge share one row. min-height
-// holds the vertical rhythm steady whether or not the due badge renders.
+// Badges/chips share one row; min-height keeps the rhythm steady when empty.
 .card-meta {
   display: flex;
   flex-wrap: wrap;
@@ -163,6 +161,30 @@
 
   &.is-overdue {
     font-weight: 700;
+  }
+}
+
+// Reuses .due-badge's box (inline-flex/padding/border/radius/font) — see
+// above; only the truncation + status-colour variants are sprint-specific.
+.sprint-chip {
+  max-inline-size: 9ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &[data-sprint-status='planned'] {
+    color: var(--sprint-planned-text);
+    background: var(--sprint-planned-fill);
+    border-color: var(--sprint-planned-border);
+  }
+  &[data-sprint-status='active'] {
+    color: var(--sprint-active-text);
+    background: var(--sprint-active-fill);
+    border-color: var(--sprint-active-border);
+  }
+  &[data-sprint-status='completed'] {
+    color: var(--sprint-completed-text);
+    background: var(--sprint-completed-fill);
+    border-color: var(--sprint-completed-border);
   }
 }
 

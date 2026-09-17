@@ -18,6 +18,8 @@ export interface Task {
   teamId: string;
   /** Team member the task is assigned to, or null/undefined for unassigned. */
   assigneeId?: string | null;
+  /** Sprint the task is planned in, or null/undefined for the backlog. */
+  sprintId?: string | null;
   /** Sort order within a status column. */
   position: number;
   createdAt: string;
@@ -31,13 +33,21 @@ export type NewTask = Pick<Task, 'title' | 'status' | 'priority'> & {
   description?: string;
   dueDate?: string;
   assigneeId?: string | null;
+  sprintId?: string | null;
 };
 
 /** Fields the client may change on an existing task. */
 export type TaskPatch = Partial<
   Pick<
     Task,
-    'title' | 'description' | 'status' | 'priority' | 'position' | 'dueDate' | 'assigneeId'
+    | 'title'
+    | 'description'
+    | 'status'
+    | 'priority'
+    | 'position'
+    | 'dueDate'
+    | 'assigneeId'
+    | 'sprintId'
   >
 >;
 

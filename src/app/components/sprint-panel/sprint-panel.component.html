@@ -1,0 +1,361 @@
+<div class="overlay" (click)="closed.emit()">
+  <div
+    class="modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="sprint-panel-title"
+    tabindex="-1"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="modal-header">
+      <h3 id="sprint-panel-title" class="modal-title">
+        {{ i18n.t('sprintPanel.title') }}<span class="modal-title__team">{{ team()?.name }}</span>
+      </h3>
+      <button
+        type="button"
+        class="close-btn"
+        (click)="closed.emit()"
+        [attr.aria-label]="i18n.t('dialog.close')"
+      >
+        ✕
+      </button>
+    </div>
+
+    <div class="panel-body">
+      <section class="panel-section">
+        @if (loading()) {
+          <div class="sprint-list">
+            <div class="sprint-row sprint-row--skeleton shimmer"></div>
+            <div class="sprint-row sprint-row--skeleton shimmer"></div>
+          </div>
+        } @else {
+          @if (loadFailed()) {
+            <p class="form-error" role="alert">{{ i18n.t('sprintPanel.loadError') }}</p>
+          }
+
+          @if (sprints().length === 0) {
+            <div class="sprint-empty">
+              <p class="sprint-empty__title">{{ i18n.t('sprintPanel.empty.title') }}</p>
+              <p class="sprint-empty__subtitle">{{ i18n.t('sprintPanel.empty.subtitle') }}</p>
+            </div>
+          } @else {
+            <ul class="sprint-list">
+              @for (sprint of sprints(); track sprint.id) {
+                <li class="sprint-row">
+                  @if (editingId() === sprint.id) {
+                    <form
+                      class="sprint-edit-form"
+                      [formGroup]="editForm"
+                      (ngSubmit)="saveEdit(sprint)"
+                    >
+                      <div class="field">
+                        <label [for]="'sprint-edit-name-' + sprint.id">{{
+                          i18n.t('sprintPanel.create.name')
+                        }}</label>
+                        <input
+                          [id]="'sprint-edit-name-' + sprint.id"
+                          type="text"
+                          formControlName="name"
+                          [placeholder]="i18n.t('sprintPanel.create.name.placeholder')"
+                          [class.field-error]="
+                            editForm.controls.name.invalid && editForm.controls.name.touched
+                          "
+                        />
+                        @if (
+                          editForm.controls.name.touched &&
+                          editForm.controls.name.hasError('required')
+                        ) {
+                          <span class="field-error-msg">{{
+                            i18n.t('sprintPanel.create.name.required')
+                          }}</span>
+                        }
+                      </div>
+                      <div class="sprint-edit-dates">
+                        <div class="field">
+                          <label [for]="'sprint-edit-start-' + sprint.id">{{
+                            i18n.t('sprintPanel.create.startDate')
+                          }}</label>
+                          <div class="date-field" dir="ltr">
+                            <input
+                              [id]="'sprint-edit-start-' + sprint.id"
+                              type="date"
+                              formControlName="startsOn"
+                            />
+                            @if (editForm.value.startsOn) {
+                              <button
+                                type="button"
+                                class="date-clear"
+                                (click)="editForm.patchValue({ startsOn: '' })"
+                                [attr.aria-label]="i18n.t('dialog.field.dueDate.clear')"
+                              >
+                                ✕
+                              </button>
+                            }
+                          </div>
+                        </div>
+                        <div class="field">
+                          <label [for]="'sprint-edit-end-' + sprint.id">{{
+                            i18n.t('sprintPanel.create.endDate')
+                          }}</label>
+                          <div class="date-field" dir="ltr">
+                            <input
+                              [id]="'sprint-edit-end-' + sprint.id"
+                              type="date"
+                              formControlName="endsOn"
+                            />
+                            @if (editForm.value.endsOn) {
+                              <button
+                                type="button"
+                                class="date-clear"
+                                (click)="editForm.patchValue({ endsOn: '' })"
+                                [attr.aria-label]="i18n.t('dialog.field.dueDate.clear')"
+                              >
+                                ✕
+                              </button>
+                            }
+                          </div>
+                        </div>
+                      </div>
+                      <div class="sprint-form-footer">
+                        <button type="button" class="btn-cancel" (click)="cancelEdit()">
+                          {{ i18n.t('sprintPanel.edit.cancel') }}
+                        </button>
+                        <button type="submit" class="btn-submit" [disabled]="busy()">
+                          {{ i18n.t('sprintPanel.edit.save') }}
+                        </button>
+                      </div>
+                    </form>
+                  } @else {
+                    <div class="sprint-row__main">
+                      <div class="sprint-row__reorder">
+                        <button
+                          type="button"
+                          class="reorder-btn"
+                          [disabled]="isFirst(sprint)"
+                          [attr.aria-label]="i18n.t('sprintPanel.row.moveUp')"
+                          (click)="reorder(sprint.id, 'up')"
+                        >
+                          <svg
+                            width="10"
+                            height="10"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <polyline points="18 15 12 9 6 15" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="reorder-btn"
+                          [disabled]="isLast(sprint)"
+                          [attr.aria-label]="i18n.t('sprintPanel.row.moveDown')"
+                          (click)="reorder(sprint.id, 'down')"
+                        >
+                          <svg
+                            width="10"
+                            height="10"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <span
+                        class="sprint-row__dot"
+                        [attr.data-status]="sprint.status"
+                        aria-hidden="true"
+                      ></span>
+                      <span class="sprint-row__name">{{ sprint.name }}</span>
+
+                      <span class="sprint-row__dates">
+                        {{ dateRange(sprint) }}
+                        @if (activeHint(sprint); as hint) {
+                          <span class="sprint-row__hint" [attr.data-tone]="hint.tone">
+                            · {{ hint.text }}</span
+                          >
+                        }
+                      </span>
+
+                      <span class="sprint-row__count">{{
+                        i18n
+                          .t('sprintPanel.row.tasksCount')
+                          .replace('{n}', taskCount(sprint.id).toString())
+                      }}</span>
+
+                      <span class="sprint-row__actions">
+                        @if (sprint.status === 'planned') {
+                          <button
+                            type="button"
+                            class="row-action"
+                            [class.is-armed]="confirmActivate().has(sprint.id)"
+                            [disabled]="busy()"
+                            (click)="setActive(sprint)"
+                          >
+                            {{
+                              confirmActivate().has(sprint.id)
+                                ? i18n.t('sprintPanel.row.setActive.confirm')
+                                : i18n.t('sprintPanel.row.setActive')
+                            }}
+                          </button>
+                        } @else if (sprint.status === 'active') {
+                          <button
+                            type="button"
+                            class="row-action"
+                            [disabled]="busy()"
+                            (click)="complete(sprint)"
+                          >
+                            {{ i18n.t('sprintPanel.row.complete') }}
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="link-create link-create--inline"
+                            [disabled]="busy()"
+                            (click)="reopen(sprint)"
+                          >
+                            {{ i18n.t('sprintPanel.row.reopen') }}
+                          </button>
+                        }
+                        <button
+                          type="button"
+                          class="edit-btn"
+                          [attr.aria-label]="i18n.t('sprintPanel.row.edit')"
+                          (click)="startEdit(sprint)"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="row-action"
+                          [class.is-armed]="confirmDelete().has(sprint.id)"
+                          [disabled]="busy()"
+                          (click)="deleteSprint(sprint)"
+                        >
+                          {{
+                            confirmDelete().has(sprint.id)
+                              ? i18n.t('sprintPanel.row.delete.confirm')
+                              : i18n.t('sprintPanel.row.delete')
+                          }}
+                        </button>
+                      </span>
+                    </div>
+                    @if (confirmDelete().has(sprint.id) && taskCount(sprint.id) > 0) {
+                      <p class="sprint-row__warning">
+                        {{ i18n.t('sprintPanel.row.delete.warning') }}
+                      </p>
+                    }
+                  }
+                </li>
+              }
+            </ul>
+          }
+
+          @if (creating()) {
+            <form class="sprint-create-form" [formGroup]="createForm" (ngSubmit)="submitCreate()">
+              <div class="field">
+                <label for="sprint-create-name">{{ i18n.t('sprintPanel.create.name') }}</label>
+                <input
+                  id="sprint-create-name"
+                  type="text"
+                  formControlName="name"
+                  [placeholder]="i18n.t('sprintPanel.create.name.placeholder')"
+                  [class.field-error]="
+                    createForm.controls.name.invalid && createForm.controls.name.touched
+                  "
+                />
+                @if (
+                  createForm.controls.name.touched && createForm.controls.name.hasError('required')
+                ) {
+                  <span class="field-error-msg">{{
+                    i18n.t('sprintPanel.create.name.required')
+                  }}</span>
+                }
+              </div>
+              <div class="sprint-edit-dates">
+                <div class="field">
+                  <label for="sprint-create-start">{{
+                    i18n.t('sprintPanel.create.startDate')
+                  }}</label>
+                  <div class="date-field" dir="ltr">
+                    <input id="sprint-create-start" type="date" formControlName="startsOn" />
+                    @if (createForm.value.startsOn) {
+                      <button
+                        type="button"
+                        class="date-clear"
+                        (click)="createForm.patchValue({ startsOn: '' })"
+                        [attr.aria-label]="i18n.t('dialog.field.dueDate.clear')"
+                      >
+                        ✕
+                      </button>
+                    }
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="sprint-create-end">{{ i18n.t('sprintPanel.create.endDate') }}</label>
+                  <div class="date-field" dir="ltr">
+                    <input id="sprint-create-end" type="date" formControlName="endsOn" />
+                    @if (createForm.value.endsOn) {
+                      <button
+                        type="button"
+                        class="date-clear"
+                        (click)="createForm.patchValue({ endsOn: '' })"
+                        [attr.aria-label]="i18n.t('dialog.field.dueDate.clear')"
+                      >
+                        ✕
+                      </button>
+                    }
+                  </div>
+                </div>
+              </div>
+              <div class="sprint-form-footer">
+                <button type="button" class="btn-cancel" (click)="cancelCreate()">
+                  {{ i18n.t('sprintPanel.edit.cancel') }}
+                </button>
+                <button type="submit" class="btn-submit" [disabled]="createSubmitting()">
+                  {{
+                    createSubmitting()
+                      ? i18n.t('sprintPanel.create.submitting')
+                      : i18n.t('sprintPanel.create.submit')
+                  }}
+                </button>
+              </div>
+            </form>
+          } @else {
+            <button type="button" class="link-create" (click)="openCreate()">
+              {{ i18n.t('sprintPanel.create') }}
+            </button>
+          }
+
+          @if (error()) {
+            <p class="form-error" role="alert">{{ i18n.t(error()!) }}</p>
+          }
+        }
+      </section>
+    </div>
+  </div>
+</div>

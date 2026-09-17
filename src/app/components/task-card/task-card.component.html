@@ -105,6 +105,33 @@
           {{ dueLabelText }}
         </span>
       }
+      @if (sprintChip(); as chip) {
+        <span
+          class="due-badge sprint-chip"
+          [attr.data-sprint-status]="chip.status"
+          role="img"
+          [attr.aria-label]="i18n.t('card.sprint.aria').replace('{name}', chip.name)"
+          [attr.title]="chip.name"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path
+              d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L3 3v6.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83Z"
+            />
+            <circle cx="7.5" cy="7.5" r="1.5" />
+          </svg>
+          {{ chip.name }}
+        </span>
+      }
       @if (assignee(); as a) {
         <span
           class="assignee-chip"

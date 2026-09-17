@@ -96,6 +96,12 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'board.search': 'חיפוש משימות...',
     'board.rename': 'שנה שם ללוח',
     'board.name.placeholder': 'שם הלוח',
+    'board.sprint': 'ספרינט',
+    'board.sprint.all': 'הכל',
+    'board.sprint.backlog': 'ללא ספרינט',
+    'board.sprint.filterLabel': 'סנן לפי ספרינט',
+    'board.sprint.manage': 'נהל ספרינטים…',
+    'board.sprint.manage.first': '+ צור ספרינט ראשון',
 
     // Statuses
     'status.todo': 'לעשות',
@@ -119,6 +125,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'card.drag': 'גרור לשינוי סדר',
     'card.dueDate.aria': 'תאריך יעד: {date} ({label})',
     'card.assignee.aria': 'אחראי: {name}',
+    'card.sprint.aria': 'ספרינט: {name}',
 
     // Due-date badge labels
     'due.today': 'היום',
@@ -128,6 +135,17 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'due.overdueDays': 'באיחור של {n} ימים',
     'due.inDaysDual': 'בעוד יומיים',
     'due.overdueDaysDual': 'לפני יומיים',
+
+    // Sprints
+    'sprint.status.planned': 'מתוכנן',
+    'sprint.status.active': 'פעיל',
+    'sprint.status.completed': 'הושלם',
+    'sprint.endingToday': 'מסתיים היום',
+    'sprint.endingTomorrow': 'מסתיים מחר',
+    'sprint.endingInDays': 'מסתיים בעוד {n} ימים',
+    'sprint.endingInDaysDual': 'מסתיים בעוד יומיים',
+    'sprint.overdueDays': 'הספרינט באיחור של {n} ימים',
+    'sprint.overdueDaysDual': 'הספרינט באיחור של יומיים',
 
     // Task dialog
     'dialog.title.create': 'משימה חדשה',
@@ -141,6 +159,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'dialog.field.dueDate': 'תאריך יעד · אופציונלי',
     'dialog.field.dueDate.clear': 'נקה תאריך יעד',
     'dialog.field.status': 'סטטוס',
+    'dialog.field.sprint': 'ספרינט · אופציונלי',
     'dialog.field.assignee': 'אחראי · אופציונלי',
     'dialog.field.assignee.unassigned': 'ללא אחראי',
     'dialog.field.assignee.memberHint': 'רק בעלים יכול לשייך משימות לחברים אחרים.',
@@ -196,6 +215,34 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'teamPanel.error.generic': 'משהו השתבש. נסו שוב.',
     'teamPanel.error.notOwner': 'רק בעלים יכול להזמין חברים',
     'teamPanel.error.copy': 'לא ניתן להעתיק את הקישור',
+
+    // Sprint panel (Phase 3)
+    'sprintPanel.title': 'ניהול ספרינטים',
+    'sprintPanel.empty.title': 'אין ספרינטים עדיין',
+    'sprintPanel.empty.subtitle': 'צרו ספרינט כדי לתכנן עבודה בפרקי זמן קבועים.',
+    'sprintPanel.loadError': 'לא ניתן לטעון ספרינטים',
+    'sprintPanel.row.tasksCount': '{n} משימות',
+    'sprintPanel.row.noDates': 'ללא תאריכים',
+    'sprintPanel.row.setActive': 'הפוך לפעיל',
+    'sprintPanel.row.setActive.confirm': 'להחליף ספרינט פעיל?',
+    'sprintPanel.row.complete': 'סיים ספרינט',
+    'sprintPanel.row.reopen': 'פתח מחדש',
+    'sprintPanel.row.edit': 'ערוך ספרינט',
+    'sprintPanel.row.delete': 'מחק',
+    'sprintPanel.row.delete.confirm': 'למחוק?',
+    'sprintPanel.row.delete.warning': 'המשימות בספרינט זה יעברו ל"ללא ספרינט"',
+    'sprintPanel.row.moveUp': 'הזז למעלה',
+    'sprintPanel.row.moveDown': 'הזז למטה',
+    'sprintPanel.edit.save': 'שמור',
+    'sprintPanel.edit.cancel': 'ביטול',
+    'sprintPanel.create': '+ ספרינט חדש',
+    'sprintPanel.create.name': 'שם הספרינט',
+    'sprintPanel.create.name.placeholder': 'למשל: ספרינט 12',
+    'sprintPanel.create.name.required': 'יש להזין שם ספרינט',
+    'sprintPanel.create.startDate': 'תאריך התחלה · אופציונלי',
+    'sprintPanel.create.endDate': 'תאריך סיום · אופציונלי',
+    'sprintPanel.create.submit': 'צור ספרינט',
+    'sprintPanel.create.submitting': 'יוצר...',
 
     // Invite accept page (Pass B)
     'invite.working': 'מצרפים אותך לצוות...',
@@ -305,6 +352,12 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'board.search': 'Search tasks...',
     'board.rename': 'Rename board',
     'board.name.placeholder': 'Board name',
+    'board.sprint': 'Sprint',
+    'board.sprint.all': 'All',
+    'board.sprint.backlog': 'Backlog',
+    'board.sprint.filterLabel': 'Filter by sprint',
+    'board.sprint.manage': 'Manage sprints…',
+    'board.sprint.manage.first': '+ Create your first sprint',
 
     // Statuses
     'status.todo': 'To do',
@@ -328,6 +381,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'card.drag': 'Drag to reorder',
     'card.dueDate.aria': 'Due date: {date} ({label})',
     'card.assignee.aria': 'Assignee: {name}',
+    'card.sprint.aria': 'Sprint: {name}',
 
     // Due-date badge labels
     'due.today': 'today',
@@ -337,6 +391,17 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'due.overdueDays': '{n} days overdue',
     'due.inDaysDual': 'in 2 days',
     'due.overdueDaysDual': '2 days overdue',
+
+    // Sprints
+    'sprint.status.planned': 'Planned',
+    'sprint.status.active': 'Active',
+    'sprint.status.completed': 'Completed',
+    'sprint.endingToday': 'Ends today',
+    'sprint.endingTomorrow': 'Ends tomorrow',
+    'sprint.endingInDays': 'Ends in {n} days',
+    'sprint.endingInDaysDual': 'Ends in 2 days',
+    'sprint.overdueDays': 'Sprint is {n} days overdue',
+    'sprint.overdueDaysDual': 'Sprint is 2 days overdue',
 
     // Task dialog
     'dialog.title.create': 'New task',
@@ -350,6 +415,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'dialog.field.dueDate': 'Due date · optional',
     'dialog.field.dueDate.clear': 'Clear due date',
     'dialog.field.status': 'Status',
+    'dialog.field.sprint': 'Sprint · optional',
     'dialog.field.assignee': 'Assignee · optional',
     'dialog.field.assignee.unassigned': 'Unassigned',
     'dialog.field.assignee.memberHint': 'Only an owner can assign tasks to other members.',
@@ -405,6 +471,34 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     'teamPanel.error.generic': 'Something went wrong. Please try again.',
     'teamPanel.error.notOwner': 'Only an owner can invite people',
     'teamPanel.error.copy': "Couldn't copy the link",
+
+    // Sprint panel (Phase 3)
+    'sprintPanel.title': 'Manage sprints',
+    'sprintPanel.empty.title': 'No sprints yet',
+    'sprintPanel.empty.subtitle': 'Create a sprint to plan work in fixed time windows.',
+    'sprintPanel.loadError': "Couldn't load sprints",
+    'sprintPanel.row.tasksCount': '{n} tasks',
+    'sprintPanel.row.noDates': 'No dates',
+    'sprintPanel.row.setActive': 'Set active',
+    'sprintPanel.row.setActive.confirm': 'Replace active sprint?',
+    'sprintPanel.row.complete': 'Complete sprint',
+    'sprintPanel.row.reopen': 'Reopen',
+    'sprintPanel.row.edit': 'Edit sprint',
+    'sprintPanel.row.delete': 'Delete',
+    'sprintPanel.row.delete.confirm': 'Delete?',
+    'sprintPanel.row.delete.warning': 'Tasks in this sprint will move to Backlog',
+    'sprintPanel.row.moveUp': 'Move up',
+    'sprintPanel.row.moveDown': 'Move down',
+    'sprintPanel.edit.save': 'Save',
+    'sprintPanel.edit.cancel': 'Cancel',
+    'sprintPanel.create': '+ New sprint',
+    'sprintPanel.create.name': 'Sprint name',
+    'sprintPanel.create.name.placeholder': 'e.g. Sprint 12',
+    'sprintPanel.create.name.required': 'Please enter a sprint name',
+    'sprintPanel.create.startDate': 'Start date · optional',
+    'sprintPanel.create.endDate': 'End date · optional',
+    'sprintPanel.create.submit': 'Create sprint',
+    'sprintPanel.create.submitting': 'Creating...',
 
     // Invite accept page (Pass B)
     'invite.working': 'Adding you to the team...',

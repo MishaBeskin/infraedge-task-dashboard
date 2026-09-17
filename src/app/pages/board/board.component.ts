@@ -14,6 +14,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { Task, Status } from '../../models/task.model';
 import { TaskService } from '../../services/task.service';
 import { TeamService } from '../../services/team.service';
+import { SprintService } from '../../services/sprint.service';
 import { AuthService } from '../../services/auth.service';
 import { I18nService } from '../../services/i18n.service';
 import { HeaderComponent } from '../../components/header/header.component';
@@ -24,6 +25,8 @@ import {
 import { TaskDialogComponent } from '../../components/task-dialog/task-dialog.component';
 import { NewTeamDialogComponent } from '../../components/new-team-dialog/new-team-dialog.component';
 import { TeamPanelComponent } from '../../components/team-panel/team-panel.component';
+import { SprintSelectorComponent } from '../../components/sprint-selector/sprint-selector.component';
+import { SprintPanelComponent } from '../../components/sprint-panel/sprint-panel.component';
 import { PENDING_INVITE_KEY } from '../invite/invite.component';
 
 @Component({
@@ -36,6 +39,8 @@ import { PENDING_INVITE_KEY } from '../invite/invite.component';
     TaskDialogComponent,
     NewTeamDialogComponent,
     TeamPanelComponent,
+    SprintSelectorComponent,
+    SprintPanelComponent,
   ],
   templateUrl: './board.component.html',
   styleUrl: './board.component.scss',
@@ -44,6 +49,7 @@ import { PENDING_INVITE_KEY } from '../invite/invite.component';
 export class BoardComponent implements OnInit {
   private taskService = inject(TaskService);
   protected teamService = inject(TeamService);
+  protected sprintService = inject(SprintService);
   private auth = inject(AuthService);
   protected i18n = inject(I18nService);
   private router = inject(Router);
@@ -51,6 +57,8 @@ export class BoardComponent implements OnInit {
   /** Team roster + the caller's id — for the assignee filter dropdown. */
   protected readonly members = this.teamService.members;
   protected readonly myId = this.auth.getCurrentUser()?.id ?? null;
+  /** Active-team sprints — for the sprint selector. */
+  protected readonly sprints = this.sprintService.sprints;
 
   error$ = this.taskService.error$;
 
@@ -78,8 +86,11 @@ export class BoardComponent implements OnInit {
       this.taskService.loadTasks().subscribe();
       // Roster for the assignee select / task-card avatar (Pass B).
       this.teamService.loadActiveMembers();
-      // A per-member filter from the previous team is meaningless here.
+      // Sprints for the sprint selector / task-card chip (Phase 3).
+      this.sprintService.loadSprints().subscribe();
+      // A per-member / per-sprint filter from the previous team is meaningless here.
       this.assigneeFilter.set('all');
+      this.sprintFilter.set('all');
     });
   }
 
@@ -87,6 +98,9 @@ export class BoardComponent implements OnInit {
   /** 'all' | 'me' | '<userId>' — narrows the board to one person's cards.
    *  Client-only: every member already receives all team tasks via RLS. */
   assigneeFilter = signal<string>('all');
+  /** 'all' | 'backlog' | '<sprintId>' — narrows the board to one sprint (or
+   *  the sprintless backlog). Client-only, same reasoning as assigneeFilter. */
+  sprintFilter = signal<'all' | 'backlog' | string>('all');
   searchQuery = signal<string>('');
 
   // Plain booleans (not signals) are fine here because they are only ever toggled
@@ -97,6 +111,7 @@ export class BoardComponent implements OnInit {
   editingTask: Task | null = null;
   showCreateTeam = false;
   showTeamPanel = false;
+  showSprintPanel = false;
 
   // toSignal bridges the Observable into the signal graph so computed() below can
   // derive column arrays reactively without manual subscriptions or markForCheck().
@@ -108,10 +123,13 @@ export class BoardComponent implements OnInit {
     let tasks = this.allTasks();
     const pf = this.priorityFilter();
     const af = this.assigneeFilter();
+    const sf = this.sprintFilter();
     const sq = this.searchQuery().trim().toLowerCase();
     if (pf !== 'all') tasks = tasks.filter((t) => t.priority === pf);
     if (af === 'me') tasks = tasks.filter((t) => t.assigneeId === this.myId);
     else if (af !== 'all') tasks = tasks.filter((t) => t.assigneeId === af);
+    if (sf === 'backlog') tasks = tasks.filter((t) => !t.sprintId);
+    else if (sf !== 'all') tasks = tasks.filter((t) => t.sprintId === sf);
     if (sq) tasks = tasks.filter((t) => t.title.toLowerCase().includes(sq));
     return tasks;
   });
@@ -196,12 +214,30 @@ export class BoardComponent implements OnInit {
     this.taskService.loadTasks().subscribe();
   }
 
+  onOpenSprintPanel() {
+    this.showSprintPanel = true;
+  }
+
+  closeSprintPanel() {
+    this.showSprintPanel = false;
+  }
+
+  /** A sprint-panel delete nulls `sprint_id` on every task it held (DB
+   *  `on delete set null`) — reload the card list so that's reflected. */
+  onSprintPanelChanged() {
+    this.taskService.loadTasks().subscribe();
+  }
+
   setPriorityFilter(f: 'all' | 'high' | 'medium' | 'low') {
     this.priorityFilter.set(f);
   }
 
   setAssigneeFilter(v: string) {
     this.assigneeFilter.set(v);
+  }
+
+  setSprintFilter(v: 'all' | 'backlog' | string) {
+    this.sprintFilter.set(v);
   }
 
   setSearchQuery(q: string) {

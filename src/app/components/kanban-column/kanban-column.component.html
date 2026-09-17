@@ -28,7 +28,11 @@
         <div class="drop-line" aria-hidden="true"></div>
       }
       <div class="card-slot" (dragover)="onCardDragOver($event, i)">
-        <app-task-card [task]="task" (editTask)="editTask.emit($event)" />
+        <app-task-card
+          [task]="task"
+          [sprintFilter]="sprintFilter"
+          (editTask)="editTask.emit($event)"
+        />
       </div>
     }
     @if (dropIndex() !== null && dropIndex() === tasks.length && tasks.length > 0) {

@@ -25,6 +25,10 @@ export const tasksCacheKey = (uid: string, teamId: string): string =>
 
 export const teamsCacheKey = (uid: string): string => `${CACHE_PREFIX}teams:${uid}`;
 
+/** Sprints are cached per user AND per team, same reasoning as tasks. */
+export const sprintsCacheKey = (uid: string, teamId: string): string =>
+  `${CACHE_PREFIX}sprints:${uid}:${teamId}`;
+
 /** Raw string read; caller does its own JSON.parse + validation. */
 export function readCacheRaw(key: string): string | null {
   try {

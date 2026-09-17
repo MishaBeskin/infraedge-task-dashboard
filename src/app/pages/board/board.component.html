@@ -23,6 +23,13 @@
 
   <!-- CENTER: filter label + pills -->
   <div class="filter-section">
+    <app-sprint-selector
+      [sprints]="sprints()"
+      [selected]="sprintFilter()"
+      (select)="setSprintFilter($event)"
+      (manage)="onOpenSprintPanel()"
+    />
+
     <span class="filter-label">{{ i18n.t('board.priority') }}</span>
     <div class="priority-pills">
       <button
@@ -119,6 +126,7 @@
         [title]="i18n.t(col.titleKey)"
         [tasks]="col.tasks()"
         [status]="col.status"
+        [sprintFilter]="sprintFilter()"
         (addTask)="openDialog($event)"
         (editTask)="openEditDialog($event)"
         (taskDropped)="onTaskDropped($event)"
@@ -151,6 +159,10 @@
 
 @if (showTeamPanel) {
   <app-team-panel (closed)="closeTeamPanel()" (changed)="onTeamPanelChanged()" />
+}
+
+@if (showSprintPanel) {
+  <app-sprint-panel (closed)="closeSprintPanel()" (changed)="onSprintPanelChanged()" />
 }
 
 <!-- Mobile-only floating action button. Hidden while a dialog is open so it

@@ -1,0 +1,166 @@
+<span class="sprint-filter">
+  <button
+    #trigger
+    type="button"
+    class="sprint-filter__trigger"
+    [class.is-open]="open()"
+    aria-haspopup="menu"
+    [attr.aria-expanded]="open()"
+    [attr.aria-label]="i18n.t('board.sprint')"
+    (click)="toggle()"
+  >
+    @if (selectedSprint; as s) {
+      <span class="sprint-filter__dot" [attr.data-status]="s.status" aria-hidden="true"></span>
+    }
+    <span class="sprint-filter__label-group">
+      <span class="sprint-filter__label">{{ triggerLabel }}</span>
+      @if (triggerHint; as hint) {
+        <span class="sprint-filter__hint" [attr.data-tone]="hint.tone">{{ hint.text }}</span>
+      }
+    </span>
+    <svg
+      class="sprint-filter__chevron"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  </button>
+
+  @if (open()) {
+    <div
+      #panel
+      class="sprint-filter__panel"
+      role="menu"
+      [attr.aria-label]="i18n.t('board.sprint')"
+      (keydown)="onPanelKeydown($event)"
+    >
+      <span class="sprint-filter__menu-label">{{ i18n.t('board.sprint.filterLabel') }}</span>
+
+      <button
+        type="button"
+        class="sprint-filter__row"
+        role="menuitemradio"
+        [attr.aria-checked]="selected === 'all'"
+        [class.is-active]="selected === 'all'"
+        (click)="selectValue('all')"
+      >
+        @if (selected === 'all') {
+          <svg
+            class="sprint-filter__check"
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="3"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        } @else {
+          <span class="sprint-filter__check-spacer" aria-hidden="true"></span>
+        }
+        <span class="sprint-filter__row-text">{{ i18n.t('board.sprint.all') }}</span>
+      </button>
+
+      <button
+        type="button"
+        class="sprint-filter__row"
+        role="menuitemradio"
+        [attr.aria-checked]="selected === 'backlog'"
+        [class.is-active]="selected === 'backlog'"
+        (click)="selectValue('backlog')"
+      >
+        @if (selected === 'backlog') {
+          <svg
+            class="sprint-filter__check"
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="3"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        } @else {
+          <span class="sprint-filter__check-spacer" aria-hidden="true"></span>
+        }
+        <span class="sprint-filter__dot sprint-filter__dot--hollow" aria-hidden="true"></span>
+        <span class="sprint-filter__row-text">{{ i18n.t('board.sprint.backlog') }}</span>
+      </button>
+
+      @for (sprint of orderedSprints; track sprint.id) {
+        <button
+          type="button"
+          class="sprint-filter__row"
+          role="menuitemradio"
+          [attr.aria-checked]="selected === sprint.id"
+          [class.is-active]="selected === sprint.id"
+          (click)="selectValue(sprint.id)"
+        >
+          @if (selected === sprint.id) {
+            <svg
+              class="sprint-filter__check"
+              aria-hidden="true"
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          } @else {
+            <span class="sprint-filter__check-spacer" aria-hidden="true"></span>
+          }
+          <span
+            class="sprint-filter__dot"
+            [attr.data-status]="sprint.status"
+            aria-hidden="true"
+          ></span>
+          <span class="sprint-filter__row-text">
+            {{ sprint.name }}
+            @if (sprint.status !== 'active') {
+              <span class="sprint-filter__row-status">({{ statusLabel(sprint.status) }})</span>
+            }
+          </span>
+          @if (sprint.status === 'active') {
+            <span class="sprint-filter__badge">{{ i18n.t('sprint.status.active') }}</span>
+          }
+        </button>
+      }
+
+      <div class="sprint-filter__divider" role="separator"></div>
+
+      <button
+        type="button"
+        class="sprint-filter__row sprint-filter__row--new"
+        role="menuitem"
+        (click)="openManage()"
+      >
+        <span class="sprint-filter__row-text">{{ manageLabel }}</span>
+      </button>
+    </div>
+  }
+</span>

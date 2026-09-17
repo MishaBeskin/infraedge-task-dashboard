@@ -16,6 +16,7 @@ interface TaskRow {
   due_date: string | null;
   team_id: string;
   assignee_id: string | null;
+  sprint_id: string | null;
   position: number;
   created_at: string;
   updated_at: string;
@@ -31,6 +32,7 @@ const fromRow = (r: TaskRow): Task => ({
   dueDate: r.due_date ?? undefined,
   teamId: r.team_id,
   assigneeId: r.assignee_id,
+  sprintId: r.sprint_id,
   position: r.position,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -45,6 +47,7 @@ const toRow = (patch: TaskPatch): Record<string, unknown> => {
   if ('description' in patch) row['description'] = patch.description ?? null;
   if ('dueDate' in patch) row['due_date'] = patch.dueDate ?? null;
   if ('assigneeId' in patch) row['assignee_id'] = patch.assigneeId ?? null;
+  if ('sprintId' in patch) row['sprint_id'] = patch.sprintId ?? null;
   return row;
 };
 
@@ -312,6 +315,7 @@ export class TaskService {
         description: input.description ?? null,
         due_date: input.dueDate ?? null,
         assignee_id: input.assigneeId ?? null,
+        sprint_id: input.sprintId ?? null,
         team_id: this.teamService.activeTeamId(),
         position,
       })

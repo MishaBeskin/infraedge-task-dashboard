@@ -61,6 +61,16 @@
       </div>
 
       <div class="field">
+        <label for="task-sprint">{{ i18n.t('dialog.field.sprint') }}</label>
+        <select id="task-sprint" formControlName="sprintId">
+          <option value="">{{ i18n.t('board.sprint.backlog') }}</option>
+          @for (s of sprints(); track s.id) {
+            <option [value]="s.id">{{ s.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
         <label for="task-assignee">{{ i18n.t('dialog.field.assignee') }}</label>
         <select id="task-assignee" formControlName="assigneeId">
           @if (assigneeLocked) {

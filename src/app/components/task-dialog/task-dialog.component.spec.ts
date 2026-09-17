@@ -1,11 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { Subject } from 'rxjs';
+import { Subject, of } from 'rxjs';
 import { TaskDialogComponent } from './task-dialog.component';
 import { TaskService } from '../../services/task.service';
 import { TeamService } from '../../services/team.service';
+import { SprintService } from '../../services/sprint.service';
 import { AuthService } from '../../services/auth.service';
 import { Task } from '../../models/task.model';
+import { Sprint } from '../../models/sprint.model';
 
 class FakeTaskService {
   lastCreate!: Subject<Task>;
@@ -33,6 +35,11 @@ class FakeTeamService {
     role: 'owner',
   });
   loadActiveMembers = vi.fn();
+}
+
+class FakeSprintService {
+  sprints = signal<Sprint[]>([]);
+  loadSprints = vi.fn(() => of(undefined));
 }
 
 class FakeAuthService {
@@ -63,6 +70,7 @@ function mountCreate(attach = false) {
     dueDate: '',
     status: 'todo',
     priority: 'medium',
+    sprintId: '',
     assigneeId: '',
   });
   return fixture;
@@ -81,6 +89,7 @@ describe('TaskDialogComponent', () => {
       providers: [
         { provide: TaskService, useValue: svc },
         { provide: TeamService, useValue: team },
+        { provide: SprintService, useValue: new FakeSprintService() },
         { provide: AuthService, useValue: auth },
       ],
     });

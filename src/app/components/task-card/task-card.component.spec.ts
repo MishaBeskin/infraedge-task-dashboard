@@ -4,8 +4,10 @@ import { Subject } from 'rxjs';
 import { TaskCardComponent } from './task-card.component';
 import { TaskService } from '../../services/task.service';
 import { TeamService } from '../../services/team.service';
+import { SprintService } from '../../services/sprint.service';
 import { PointerDragService } from '../../services/pointer-drag.service';
 import { Task } from '../../models/task.model';
+import { Sprint } from '../../models/sprint.model';
 
 /** Fake TaskService — each call hands back a fresh Subject the test can drive. */
 class FakeTaskService {
@@ -26,6 +28,11 @@ class FakeTaskService {
 /** Fake TeamService — just the roster the card reads for the assignee chip. */
 class FakeTeamService {
   members = signal<{ userId: string; name: string; email: string; role: 'owner' | 'member' }[]>([]);
+}
+
+/** Fake SprintService — just the sprints the card reads for the sprint chip. */
+class FakeSprintService {
+  sprints = signal<Sprint[]>([]);
 }
 
 /** Fake PointerDragService — records the touch-drag lifecycle calls. */
@@ -62,9 +69,10 @@ function isoInDays(n: number): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-function mount(task: Task = baseTask) {
+function mount(task: Task = baseTask, sprintFilter?: string) {
   const fixture = TestBed.createComponent(TaskCardComponent);
   fixture.componentRef.setInput('task', task);
+  if (sprintFilter !== undefined) fixture.componentRef.setInput('sprintFilter', sprintFilter);
   fixture.detectChanges();
   return fixture;
 }
@@ -72,14 +80,17 @@ function mount(task: Task = baseTask) {
 describe('TaskCardComponent', () => {
   let svc: FakeTaskService;
   let drag: FakePointerDragService;
+  let sprints: FakeSprintService;
 
   beforeEach(() => {
     svc = new FakeTaskService();
     drag = new FakePointerDragService();
+    sprints = new FakeSprintService();
     TestBed.configureTestingModule({
       providers: [
         { provide: TaskService, useValue: svc },
         { provide: TeamService, useValue: new FakeTeamService() },
+        { provide: SprintService, useValue: sprints },
         { provide: PointerDragService, useValue: drag },
       ],
     });
@@ -188,6 +199,39 @@ describe('TaskCardComponent', () => {
     expect(overdue.querySelector('rect')).toBeNull();
     expect(overdue.querySelector('path')).toBeTruthy();
     expect(overdue.classList.contains('is-overdue')).toBe(true);
+  });
+
+  // ── Sprint chip ──────────────────────────────────────────────────
+
+  const sprint: Sprint = {
+    id: 's1',
+    teamId: 't1',
+    name: 'Sprint 12',
+    startsOn: null,
+    endsOn: null,
+    status: 'active',
+    position: 1,
+    createdAt: 't0',
+  };
+
+  it('renders no sprint chip when the task has no sprint', () => {
+    expect(mount().nativeElement.querySelector('.sprint-chip')).toBeNull();
+  });
+
+  it('renders the sprint chip with the sprint name once the roster loads', () => {
+    sprints.sprints.set([sprint]);
+    const fixture = mount({ ...baseTask, sprintId: 's1' });
+    const chip: HTMLElement = fixture.nativeElement.querySelector('.sprint-chip');
+
+    expect(chip).toBeTruthy();
+    expect(chip.getAttribute('data-sprint-status')).toBe('active');
+    expect(chip.textContent).toContain('Sprint 12');
+  });
+
+  it('hides the chip when the board is already filtered to that exact sprint', () => {
+    sprints.sprints.set([sprint]);
+    const fixture = mount({ ...baseTask, sprintId: 's1' }, 's1');
+    expect(fixture.nativeElement.querySelector('.sprint-chip')).toBeNull();
   });
 
   // ── Touch drag via the grip handle ──────────────────────────────
