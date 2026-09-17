@@ -199,7 +199,7 @@
                           <button
                             type="button"
                             class="row-action"
-                            [class.is-armed]="confirmActivate().has(sprint.id)"
+                            [class.is-armed--confirm]="confirmActivate().has(sprint.id)"
                             [disabled]="busy()"
                             (click)="setActive(sprint)"
                           >
@@ -252,7 +252,7 @@
                         <button
                           type="button"
                           class="row-action"
-                          [class.is-armed]="confirmDelete().has(sprint.id)"
+                          [class.is-armed--danger]="confirmDelete().has(sprint.id)"
                           [disabled]="busy()"
                           (click)="deleteSprint(sprint)"
                         >

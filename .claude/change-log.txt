@@ -726,3 +726,12 @@
 2026-09-17 10:53:01 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\components\task-card\task-card.component.html
 2026-09-17 10:53:08 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\components\task-card\task-card.component.scss
 2026-09-17 10:54:36 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\components\sprint-panel\sprint-panel.component.scss
+2026-09-17 11:03:54 C:\Develop\InfraEdge\infraedge-task-dashboard\supabase\migrations\0008_set_active_sprint.sql
+2026-09-17 11:04:04 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\services\sprint.service.ts
+2026-09-17 11:04:08 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\services\sprint.service.ts
+2026-09-17 11:04:24 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\services\sprint.service.spec.ts
+2026-09-17 11:04:42 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\services\sprint.service.spec.ts
+2026-09-17 11:05:02 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\services\sprint.service.spec.ts
+2026-09-17 11:05:29 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\components\sprint-panel\sprint-panel.component.scss
+2026-09-17 11:05:37 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\components\sprint-panel\sprint-panel.component.html
+2026-09-17 11:05:40 C:\Develop\InfraEdge\infraedge-task-dashboard\src\app\components\sprint-panel\sprint-panel.component.html

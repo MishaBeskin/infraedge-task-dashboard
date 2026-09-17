@@ -235,9 +235,19 @@
     background: var(--bg);
   }
 
-  &.is-armed {
+  // Two armed-confirm tones: `--danger` for the destructive delete confirm
+  // (stays red/alarming), `--confirm` for the non-destructive activate
+  // confirm (just reassigns which sprint is active — themed with the same
+  // brand tone the "active" state already uses elsewhere in this panel).
+  &.is-armed--danger {
     border-color: var(--priority-high);
     color: var(--priority-high);
+    font-weight: 600;
+  }
+
+  &.is-armed--confirm {
+    border-color: var(--sprint-active-text);
+    color: var(--sprint-active-text);
     font-weight: 600;
   }
 
